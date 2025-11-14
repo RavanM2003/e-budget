@@ -1,0 +1,54 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Manrope', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-300 ease-spring dark:bg-slate-950 dark:text-slate-100;
+}
+
+#root {
+  @apply min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-slate-400/70 dark:bg-slate-600;
+}
+
+.glass-card {
+  @apply rounded-3xl border border-white/60 bg-white/80 p-6 shadow-soft backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/70;
+}
+
+.glass-panel {
+  @apply rounded-2xl border border-white/50 bg-white/70 shadow-xl backdrop-blur-md dark:border-white/5 dark:bg-slate-900/60;
+}
+
+.nav-link-active {
+  @apply bg-brand-500/10 text-brand-600 shadow-inner dark:bg-brand-400/10 dark:text-brand-200;
+}
+
+.fade-layout {
+  animation: fadeIn 320ms ease-spring;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

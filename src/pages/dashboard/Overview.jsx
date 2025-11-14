@@ -1,0 +1,477 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ArrowDownRight, ArrowUpRight, CreditCard, PiggyBank, Wallet2 } from 'lucide-react';
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import StatCard from '../../components/dashboard/StatCard';
+import Card from '../../components/common/Card';
+import ChartCard from '../../components/dashboard/ChartCard';
+import QuickActionCard from '../../components/dashboard/QuickActionCard';
+import BudgetCard from '../../components/dashboard/BudgetCard';
+import GoalCard from '../../components/dashboard/GoalCard';
+import EmptyState from '../../components/common/EmptyState';
+import Badge from '../../components/common/Badge';
+import { useData } from '../../contexts/DataContext';
+import { useSettings } from '../../contexts/SettingsContext';
+import { formatDate } from '../../utils/date';
+
+const COLORS = ['#6366f1', '#22d3ee', '#f97316', '#f43f5e', '#14b8a6'];
+
+const buildMonthKey = (year, month) => `${year}-${month}`;
+const parseMonthKey = (key) => {
+  const [year, month] = key.split('-').map(Number);
+  return { year, month };
+};
+const formatMonthLabel = (year, month) => `${String(month + 1).padStart(2, '0')}/${year}`;
+
+const collectMonthOptions = (transactions, _locale, fallbackKey) => {
+  const optionMap = new Map();
+  transactions.forEach((tx) => {
+    const date = new Date(tx.date);
+    if (Number.isNaN(date.getTime())) return;
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const key = buildMonthKey(year, month);
+    if (!optionMap.has(key)) {
+      optionMap.set(key, formatMonthLabel(year, month));
+    }
+  });
+  if (!optionMap.has(fallbackKey)) {
+    const { year, month } = parseMonthKey(fallbackKey);
+    optionMap.set(fallbackKey, formatMonthLabel(year, month));
+  }
+  return Array.from(optionMap.entries())
+    .map(([key, label]) => ({ key, label }))
+    .sort((a, b) => parseMonthKey(b.key).year - parseMonthKey(a.key).year || parseMonthKey(b.key).month - parseMonthKey(a.key).month);
+};
+
+const formatDelta = (current, previous) => {
+  if (!previous) return '—';
+  const value = ((current - previous) / previous) * 100;
+  if (!Number.isFinite(value)) return '—';
+  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+};
+
+const aggregateStats = (transactions) => {
+  return transactions.reduce(
+    (acc, tx) => {
+      const amount = Number(tx.amount) || 0;
+      if (tx.type === 'income') acc.income += amount;
+      else acc.expense += amount;
+      acc.net = acc.income - acc.expense;
+      acc.count += 1;
+      return acc;
+    },
+    { income: 0, expense: 0, net: 0, count: 0 }
+  );
+};
+
+const OverviewPage = () => {
+  const navigate = useNavigate();
+  const { t, i18n } = useTranslation();
+  const { transactions, goals, budgets } = useData();
+  const { settings } = useSettings();
+  const now = new Date();
+  const currentKey = buildMonthKey(now.getFullYear(), now.getMonth());
+
+  const monthOptions = useMemo(() => collectMonthOptions(transactions, i18n.language, currentKey), [transactions, i18n.language, currentKey]);
+  const [primaryMonth, setPrimaryMonth] = useState(monthOptions[0]?.key || currentKey);
+  const fallbackComparison = monthOptions[1]?.key || primaryMonth;
+  const [comparisonMonth, setComparisonMonth] = useState(fallbackComparison);
+
+  const { year: primaryYear, month: primaryMonthIndex } = parseMonthKey(primaryMonth);
+  const primaryTransactions = useMemo(
+    () => transactions.filter((tx) => {
+      const date = new Date(tx.date);
+      return !Number.isNaN(date.getTime()) && date.getFullYear() === primaryYear && date.getMonth() === primaryMonthIndex;
+    }),
+    [transactions, primaryYear, primaryMonthIndex]
+  );
+
+  const previousKey = useMemo(() => {
+    const date = new Date(primaryYear, primaryMonthIndex - 1, 1);
+    return buildMonthKey(date.getFullYear(), date.getMonth());
+  }, [primaryYear, primaryMonthIndex]);
+
+  const previousTransactions = useMemo(
+    () => transactions.filter((tx) => {
+      const date = new Date(tx.date);
+      const { year, month } = parseMonthKey(previousKey);
+      return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month;
+    }),
+    [transactions, previousKey]
+  );
+
+  const comparisonTransactions = useMemo(() => {
+    const { year, month } = parseMonthKey(comparisonMonth);
+    return transactions.filter((tx) => {
+      const date = new Date(tx.date);
+      return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month;
+    });
+  }, [transactions, comparisonMonth]);
+
+  const topExpenseCategory = useMemo(() => {
+    const expenses = primaryTransactions.filter((tx) => tx.type === 'expense');
+    if (!expenses.length) return null;
+    const totalExpense = expenses.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const grouped = expenses.reduce((acc, tx) => {
+      const key = tx.category || t('transactions.filters.all');
+      acc[key] = (acc[key] || 0) + (Number(tx.amount) || 0);
+      return acc;
+    }, {});
+    const [name, value] = Object.entries(grouped).sort((a, b) => b[1] - a[1])[0];
+    const percent = totalExpense > 0 ? Math.round((value / totalExpense) * 100) : 0;
+    return { name, value, percent };
+  }, [primaryTransactions, t]);
+
+
+  const primaryStats = useMemo(() => aggregateStats(primaryTransactions), [primaryTransactions]);
+  const previousStats = useMemo(() => aggregateStats(previousTransactions), [previousTransactions]);
+  const comparisonStats = useMemo(() => aggregateStats(comparisonTransactions), [comparisonTransactions]);
+
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(i18n.language, {
+        style: 'currency',
+        currency: settings.currency || 'AZN'
+      }),
+    [i18n.language, settings.currency]
+  );
+
+  const stats = [
+    { title: t('dashboard.income'), value: primaryStats.income, delta: formatDelta(primaryStats.income, previousStats.income), icon: ArrowUpRight, trend: primaryStats.income >= previousStats.income ? 'up' : 'down' },
+    { title: t('dashboard.expenses'), value: primaryStats.expense, delta: formatDelta(primaryStats.expense, previousStats.expense), icon: ArrowDownRight, trend: primaryStats.expense <= previousStats.expense ? 'up' : 'down' },
+    { title: t('dashboard.savings'), value: Math.max(primaryStats.net, 0), delta: formatDelta(primaryStats.net, previousStats.net), icon: PiggyBank, trend: primaryStats.net >= previousStats.net ? 'up' : 'down' },
+    { title: t('dashboard.availableBudget'), value: Math.max(0, primaryStats.income - primaryStats.expense), delta: formatDelta(primaryStats.income - primaryStats.expense, previousStats.income - previousStats.expense), icon: Wallet2, trend: primaryStats.income - primaryStats.expense >= previousStats.income - previousStats.expense ? 'up' : 'down' }
+  ].map((entry) => ({ ...entry, valueLabel: currencyFormatter.format(entry.value) }));
+
+  const monthlyNet = primaryStats.net;
+  const yearlyNet = useMemo(() => {
+    const { year } = parseMonthKey(primaryMonth);
+    return transactions.reduce((acc, tx) => {
+      const date = new Date(tx.date);
+      if (Number.isNaN(date.getTime()) || date.getFullYear() !== year) return acc;
+      const amount = Number(tx.amount) || 0;
+      return acc + (tx.type === 'income' ? amount : -amount);
+    }, 0);
+  }, [transactions, primaryMonth]);
+
+  const alerts = useMemo(() => {
+    const list = [];
+    if (primaryStats.income > 0) {
+      const ratio = Math.round((primaryStats.expense / primaryStats.income) * 100);
+      if (ratio >= 100) {
+        list.push({ type: 'danger', message: t('alerts.monthlyLoss', { value: currencyFormatter.format(Math.abs(primaryStats.expense - primaryStats.income)) }) });
+      } else if (ratio >= 80) {
+        list.push({ type: 'warning', message: t('alerts.highSpending', { percent: ratio }) });
+      } else if (monthlyNet > 0) {
+        list.push({ type: 'positive', message: t('alerts.profit', { value: currencyFormatter.format(monthlyNet) }) });
+      }
+    } else if (monthlyNet > 0) {
+      list.push({ type: 'positive', message: t('alerts.profit', { value: currencyFormatter.format(monthlyNet) }) });
+    }
+    budgets
+      .filter((budget) => Number(budget.limit) > 0)
+      .map((budget) => ({ ...budget, usage: Math.round((Number(budget.spent) / Number(budget.limit)) * 100) }))
+      .filter((budget) => budget.usage >= 85)
+      .slice(0, 2)
+      .forEach((budget) => list.push({ type: budget.usage >= 100 ? 'danger' : 'warning', message: t('alerts.nearBudget', { title: budget.title, percent: budget.usage }) }));
+    goals
+      .filter((goal) => Number(goal.target) > 0)
+      .map((goal) => ({ ...goal, progress: Math.round((Number(goal.saved) / Number(goal.target)) * 100) }))
+      .filter((goal) => goal.progress >= 70 && goal.progress < 100)
+      .slice(0, 2)
+      .forEach((goal) => list.push({ type: 'positive', message: t('alerts.goalAlmost', { title: goal.title, progress: goal.progress }) }));
+    return list.slice(0, 4);
+  }, [monthlyNet, primaryStats, budgets, goals, currencyFormatter, t]);
+
+  const monthFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'short' }), [i18n.language]);
+
+  const monthlySeries = useMemo(() => {
+    const grouped = transactions.reduce((acc, tx) => {
+      const date = new Date(tx.date);
+      if (Number.isNaN(date.getTime())) return acc;
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!acc[key]) {
+        acc[key] = { month: date, income: 0, expense: 0 };
+      }
+      acc[key][tx.type] += Number(tx.amount) || 0;
+      return acc;
+    }, {});
+    return Object.values(grouped)
+      .sort((a, b) => a.month - b.month)
+      .slice(-6)
+      .map((entry) => ({
+        label: monthFormatter.format(entry.month),
+        income: entry.income,
+        expense: entry.expense
+      }));
+  }, [transactions, monthFormatter]);
+
+  const weeklySeries = useMemo(() => {
+    const grouped = transactions.reduce((acc, tx) => {
+      const date = new Date(tx.date);
+      if (Number.isNaN(date.getTime())) return acc;
+      const weekKey = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
+      if (!acc[weekKey]) acc[weekKey] = { label: weekKey, income: 0, expense: 0 };
+      acc[weekKey][tx.type] += Number(tx.amount) || 0;
+      return acc;
+    }, {});
+    return Object.entries(grouped)
+      .sort(([a], [b]) => (a > b ? 1 : -1))
+      .map(([, value]) => value)
+      .slice(-8);
+  }, [transactions]);
+
+  const categorySeries = useMemo(() => {
+    const grouped = transactions.reduce((acc, tx) => {
+      if (!tx.category) return acc;
+      if (!acc[tx.category]) acc[tx.category] = 0;
+      acc[tx.category] += Number(tx.amount) || 0;
+      return acc;
+    }, {});
+    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
+  }, [transactions]);
+
+  const recentTransactions = primaryTransactions.slice(0, 4);
+
+
+  useEffect(() => {
+    if (!monthOptions.find((option) => option.key === primaryMonth)) {
+      setPrimaryMonth(monthOptions[0]?.key || currentKey);
+    }
+  }, [monthOptions, primaryMonth, currentKey]);
+
+  useEffect(() => {
+    if (!comparisonMonth || comparisonMonth === primaryMonth) {
+      const candidate = monthOptions.find((option) => option.key !== primaryMonth);
+      if (candidate) {
+        setComparisonMonth(candidate.key);
+      }
+    }
+  }, [monthOptions, primaryMonth, comparisonMonth]);
+
+  const quickNavigateOptions = [
+    { title: t('dashboard.addTransaction'), description: t('dashboard.quickAdd'), icon: CreditCard, to: '/transactions' },
+    { title: t('dashboard.setBudget'), description: t('dashboard.quickBudget'), icon: Wallet2, to: '/budgets' },
+    { title: t('dashboard.trackGoal'), description: t('dashboard.quickGoal'), icon: PiggyBank, to: '/goals' }
+  ];
+
+  const comparisonOptions = monthOptions.filter((option) => option.key !== primaryMonth);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-4">
+        <div>
+          <p className="text-xs uppercase text-slate-500">{t('dashboard.monthlySummary')}</p>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">{monthOptions.find((option) => option.key === primaryMonth)?.label}</h2>
+        </div>
+        <select className="rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700" value={primaryMonth} onChange={(event) => setPrimaryMonth(event.target.value)}>
+          {monthOptions.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <StatCard key={stat.title} title={stat.title} value={stat.valueLabel} delta={stat.delta} trend={stat.trend} icon={stat.icon} />
+        ))}
+      </div>
+
+      {alerts.length > 0 && (
+        <div className="grid gap-3">
+          {alerts.map((alert, index) => (
+            <div
+              key={`${alert.message}-${index}`}
+              className={`rounded-2xl border px-4 py-3 text-sm font-medium ${
+                alert.type === 'danger'
+                  ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200'
+                  : alert.type === 'warning'
+                  ? 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200'
+              }`}
+            >
+              {alert.message}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {[{ title: t('dashboard.monthlyNet'), value: monthlyNet }, { title: t('dashboard.yearlyNet'), value: yearlyNet }].map((entry) => {
+          const positive = entry.value >= 0;
+          return (
+            <Card key={entry.title} title={entry.title} subtitle={positive ? t('dashboard.profit') : t('dashboard.loss')}>
+              <p className={`text-3xl font-semibold ${positive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {positive ? '+' : '-'}
+                {currencyFormatter.format(Math.abs(entry.value))}
+              </p>
+            </Card>
+          );
+        })}
+        {topExpenseCategory ? (
+          <Card title={t('dashboard.topSpending')} subtitle={primaryStats.expense ? t('dashboard.expenses') : undefined}>
+            <div className="space-y-2">
+              <p className="text-lg font-semibold text-slate-900 dark:text-white">{topExpenseCategory.name}</p>
+              <p className="text-3xl font-semibold text-slate-900 dark:text-white">{currencyFormatter.format(topExpenseCategory.value)}</p>
+              <p className="text-xs text-slate-500">{topExpenseCategory.percent}% {t('dashboard.expenses')}</p>
+            </div>
+          </Card>
+        ) : (
+          <Card title={t('dashboard.topSpending')}><p className="text-sm text-slate-500">{t('common.empty')}</p></Card>
+        )}
+      </div>
+
+      {comparisonOptions.length > 0 && (
+        <Card title={t('dashboard.monthlySummary')} subtitle={t('dashboard.incomeVsExpense')}>
+          <div className="flex flex-wrap items-center gap-3 pb-4">
+            <span className="text-sm font-medium text-slate-500">{t('dashboard.monthlySummary')}</span>
+            <select className="rounded-2xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" value={comparisonMonth} onChange={(event) => setComparisonMonth(event.target.value)}>
+              {comparisonOptions.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-3 text-sm text-slate-600 dark:text-slate-300">
+            {[{ key: 'income', label: t('dashboard.income') }, { key: 'expense', label: t('dashboard.expenses') }, { key: 'net', label: t('dashboard.savings') }].map((row) => (
+              <div key={row.key} className="flex items-center justify-between rounded-2xl border border-slate-100 px-4 py-2 dark:border-slate-800">
+                <span>{row.label}</span>
+                <div className="text-right">
+                  <p className="font-semibold text-slate-900 dark:text-white">{currencyFormatter.format(primaryStats[row.key])}</p>
+                  <p className="text-xs text-slate-500">
+                    {currencyFormatter.format(comparisonStats[row.key])} ({formatDelta(primaryStats[row.key], comparisonStats[row.key])})
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+        <ChartCard title={t('dashboard.incomeVsExpense')} subtitle={t('dashboard.lastSixMonths')}>
+          {monthlySeries.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={monthlySeries} margin={{ left: 0, right: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="income" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="expense" x1="0" x2="0" y1="0" y2="1">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#ef4444" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                <Area type="monotone" dataKey="income" stroke="#10b981" fill="url(#income)" strokeWidth={3} />
+                <Area type="monotone" dataKey="expense" stroke="#ef4444" fill="url(#expense)" strokeWidth={3} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
+          )}
+        </ChartCard>
+
+        <Card title={t('dashboard.quickActions')}>
+          <div className="grid gap-3">
+            {quickNavigateOptions.map((action) => (
+              <QuickActionCard key={action.title} {...action} />
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartCard title={t('dashboard.cashflow')} subtitle={t('dashboard.weeklyMovement')}>
+          {weeklySeries.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weeklySeries}>
+                <CartesianGrid vertical={false} stroke="rgba(148, 163, 184, 0.25)" />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} hide />
+                <Tooltip />
+                <Bar dataKey="income" stackId="cash" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="expense" stackId="cash" fill="#f97316" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
+          )}
+        </ChartCard>
+        <ChartCard title={t('dashboard.allocation')} subtitle={t('dashboard.byCategory')}>
+          {categorySeries.length ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={categorySeries} outerRadius={110} innerRadius={70} paddingAngle={4} dataKey="value">
+                  {categorySeries.map((entry, index) => (
+                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
+          )}
+        </ChartCard>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card title={t('goals.title')} subtitle={t('dashboard.goalsOverview')}>
+          {goals.length ? (
+            <div className="space-y-4">
+              {goals.map((goal) => (
+                <GoalCard key={goal.id} {...goal} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={t('common.empty')} description={t('goals.empty')} />
+          )}
+        </Card>
+        <Card title={t('budgets.title')} subtitle={t('budgets.monthly')}>
+          {budgets.length ? (
+            <div className="space-y-4">
+              {budgets.map((budget) => (
+                <BudgetCard key={budget.id} {...budget} formatAmount={(value) => currencyFormatter.format(value)} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState title={t('common.empty')} description={t('budgets.empty')} />
+          )}
+        </Card>
+      </div>
+
+      <Card title={t('transactions.recent')} action={<button className="text-sm font-semibold text-brand-600" onClick={() => navigate('/transactions')}>
+        {t('common.viewAll')}
+      </button>}>
+        {recentTransactions.length ? (
+          <div className="grid gap-4">
+            {recentTransactions.map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 text-sm dark:border-slate-800">
+                <div>
+                  <p className="font-medium text-slate-900 dark:text-white">{tx.title}</p>
+                  <p className="text-xs text-slate-500">{formatDate(tx.date)}</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>{tx.category}</Badge>
+                  <p className="font-semibold text-slate-900 dark:text-white">{tx.type === 'income' ? '+' : '-'}{currencyFormatter.format(Number(tx.amount) || 0)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState title={t('transactions.empty')} description={t('transactions.emptyDescription')} />
+        )}
+      </Card>
+    </div>
+  );
+};
+
+export default OverviewPage;

@@ -1,0 +1,209 @@
+{
+  "app": {
+    "name": "eBudget",
+    "tagline": "Şəxsi büdcə idarəçiliyi"
+  },
+  "navigation": {
+    "dashboard": "İdarə paneli",
+    "transactions": "Əməliyyatlar",
+    "categories": "Kateqoriyalar",
+    "budgets": "Büdcələr",
+    "goals": "Hədəflər",
+    "reports": "Hesabatlar",
+    "settings": "Ayarlar"
+  },
+  "auth": {
+    "welcomeBack": "Yenidən xoş gəlmisiniz",
+    "createAccount": "Hesab yaradın",
+    "forgotPassword": "Şifrəni unutmusunuz?",
+    "login": "Daxil ol",
+    "register": "Qeydiyyatdan keç",
+    "sendLink": "Bərpa linki göndər",
+    "noAccount": "Hesabınız yoxdur?",
+    "alreadyAccount": "Artıq hesabınız var?",
+    "rememberMe": "Bu cihazı yadda saxla",
+    "resetIntro": "E-poçtunuzu daxil edin, sizə təhlükəsiz bərpa linki göndərək"
+  },
+  "forms": {
+    "name": "Tam ad",
+    "email": "E-poçt",
+    "password": "Şifrə",
+    "confirmPassword": "Şifrəni təsdiqlə",
+    "currency": "Valyuta",
+    "language": "Dil",
+    "submit": "Göndər",
+    "cancel": "Ləğv et",
+    "save": "Yadda saxla",
+    "search": "Axtar",
+    "color": "Rəng"
+  },
+  "actions": {
+    "edit": "Redaktə et",
+    "delete": "Sil",
+    "update": "Yenilə",
+    "cancel": "Ləğv et",
+    "save": "Yadda saxla",
+    "addExpense": "Xərc əlavə et",
+    "addSavings": "Yığım əlavə et"
+  },
+  "dashboard": {
+    "monthlySummary": "Aylıq icmal",
+    "income": "Gəlir",
+    "expenses": "Xərc",
+    "savings": "Yığım",
+    "availableBudget": "Mövcud büdcə",
+    "incomeVsExpense": "Gəlir / Xərc",
+    "goalsOverview": "Hədəflərin icmalı",
+    "quickActions": "Sürətli əmrlər",
+    "addTransaction": "Əməliyyat əlavə et",
+    "setBudget": "Büdcə təyin et",
+    "trackGoal": "Hədəfi izləyin",
+    "lastSixMonths": "Son 6 ay",
+    "noDataMessage": "Statistikanı görmək üçün məlumat əlavə edin",
+    "quickAdd": "Gəlir və ya xərc daxil edin",
+    "quickBudget": "Aylıq limitləri yeniləyin",
+    "quickGoal": "Yığım hədəflərini tənzimləyin",
+    "cashflow": "Nağd axını",
+    "weeklyMovement": "Həftəlik dinamika",
+    "allocation": "Bölgü",
+    "byCategory": "Kateqoriyalara görə",
+    "monthlyNet": "Aylıq nəticə",
+    "yearlyNet": "İllik nəticə",
+    "profit": "Mənfəət",
+    "loss": "Zərər",
+    "topSpending": "Bu ay ən çox xərc"
+  },
+  "transactions": {
+    "title": "Əməliyyatlar",
+    "recent": "Son aktivlik",
+    "add": "Əməliyyat əlavə et",
+    "edit": "Əməliyyatı redaktə et",
+    "type": "Tip",
+    "amount": "Məbləğ",
+    "category": "Kateqoriya",
+    "date": "Tarix",
+    "status": "Status",
+    "actions": "Əməliyyatlar",
+    "deleteConfirm": "Bu əməliyyatı silmək istədiyinizə əminsiniz?",
+    "empty": "Hələ əməliyyat əlavə etməmisiniz",
+    "emptyDescription": "İlk gəlir və ya xərci yaratmaq üçün düymədən istifadə edin.",
+    "showing": "{{from}}-{{to}} / {{total}} yazı",
+    "fields": {
+      "title": "Başlıq",
+      "category": "Kateqoriya",
+      "amount": "Məbləğ",
+      "date": "Tarix"
+    },
+    "filters": {
+      "all": "Hamısı",
+      "income": "Gəlir",
+      "expense": "Xərc"
+    }
+  },
+  "categories": {
+    "title": "Kateqoriyalar",
+    "income": "Gəlir kateqoriyaları",
+    "expense": "Xərc kateqoriyaları",
+    "add": "Kateqoriya əlavə et",
+    "empty": "Kateqoriya yoxdur",
+    "emptyDescription": "Əməliyyatları qruplaşdırmaq üçün kateqoriya yaradın.",
+    "deleteConfirm": "Bu kateqoriyanı silmək istədiyinizə əminsiniz?"
+  },
+  "budgets": {
+    "title": "Büdcələr",
+    "monthly": "Aylıq büdcələr",
+    "category": "Kateqoriya büdcələri",
+    "spent": "Xərclənib",
+    "remaining": "Qalıq",
+    "add": "Büdcə yarat",
+    "limit": "Limit",
+    "empty": "Büdcə əlavə edilməyib",
+    "deleteConfirm": "Bu büdcəni silmək istəyirsiniz?"
+  },
+  "goals": {
+    "title": "Yığım hədəfləri",
+    "target": "Hədəf",
+    "saved": "Yığılmış",
+    "due": "Son tarix",
+    "add": "Hədəf yarat",
+    "empty": "Hədəf yoxdur",
+    "deleteConfirm": "Bu hədəfi silmək istədiyinizə əminsiniz?"
+  },
+  "reports": {
+    "title": "Hesabat və analitika",
+    "cashflow": "Nağd axını trendləri",
+    "allocation": "Kateqoriyalara görə bölgü",
+    "distribution": "Kateqoriya paylanması",
+    "statusSummary": "Statuslara görə statistikalar",
+    "topTransactions": "Ən böyük əməliyyatlar",
+    "netTrend": "Xalis nəticə trendləri",
+    "subtitle": "Filtrlərə uyğun dinamik görünüş",
+    "byCategory": "Kateqoriya payı",
+    "yearly": "İllik müqayisə",
+    "yearlySubtitle": "İllər üzrə gəlir və xərc",
+    "filters": {
+      "title": "Analitika filtrləri",
+      "from": "Başlanğıc tarix",
+      "to": "Son tarix",
+      "type": "Tip",
+      "category": "Kateqoriya",
+      "view": "Qruplaşdırma",
+      "metric": "Metrika",
+      "chart": "Qrafik tipi"
+    },
+    "views": {
+      "daily": "Günlük",
+      "weekly": "Həftəlik",
+      "monthly": "Aylıq",
+      "quarterly": "Rüblük",
+      "yearly": "İllik"
+    },
+    "charts": {
+      "area": "Area qrafiki",
+      "line": "Xətt qrafiki",
+      "bar": "Sütun qrafiki"
+    },
+    "metrics": {
+      "income": "Gəlir",
+      "expense": "Xərc",
+      "net": "Xalis nəticə"
+    },
+    "summary": {
+      "incomeTotal": "Toplam gəlir",
+      "expenseTotal": "Toplam xərc",
+      "netTotal": "Xalis nəticə",
+      "avgTransaction": "Orta əməliyyat dəyəri"
+    },
+    "insightsTitle": "Analitik qeydlər",
+    "insights": {
+      "biggestExpense": "Ən böyük xərc",
+      "biggestIncome": "Ən böyük gəlir",
+      "busiestDay": "Ən aktiv gün",
+      "topCategory": "Ən çox xərc kateqoriyası"
+    }
+  },
+  "alerts": {
+    "monthlyLoss": "Bu ay xərclər gəliri {{value}} məbləğində keçdi",
+    "highSpending": "Xərclər gəlirin {{percent}}%-nə çatdı",
+    "nearBudget": "{{title}} büdcəsi bitmək üzrədir ({{percent}}%)",
+    "goalAlmost": "{{title}} hədəfinə çatmağa az qalıb ({{progress}}%)",
+    "profit": "Əla! Bu dövrdə {{value}} məbləğində mənfəət var"
+  },
+  "common": {
+    "language": "Dil",
+    "theme": "Tema",
+    "light": "Açıq",
+    "dark": "Tünd",
+    "logout": "Çıxış",
+    "viewAll": "Hamısına bax",
+    "empty": "Məlumat yoxdur",
+    "profile": "Profil",
+    "prev": "Əvvəl",
+    "next": "Sonrakı",
+    "status": {
+      "pending": "Gözləyir",
+      "cleared": "Təsdiqlənib",
+      "scheduled": "Planlaşdırılıb"
+    }
+  }
+}
