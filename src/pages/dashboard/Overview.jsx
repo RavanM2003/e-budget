@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowDownRight, ArrowUpRight, CreditCard, PiggyBank, Wallet2 } from 'lucide-react';
-import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../../components/dashboard/StatCard';
 import Card from '../../components/common/Card';
@@ -10,12 +10,14 @@ import QuickActionCard from '../../components/dashboard/QuickActionCard';
 import BudgetCard from '../../components/dashboard/BudgetCard';
 import GoalCard from '../../components/dashboard/GoalCard';
 import EmptyState from '../../components/common/EmptyState';
-import Badge from '../../components/common/Badge';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { formatDate } from '../../utils/date';
 
-const COLORS = ['#6366f1', '#22d3ee', '#f97316', '#f43f5e', '#14b8a6'];
+const CATEGORY_FALLBACK = {
+  income: '#10b981',
+  expense: '#ef4444'
+};
 
 const buildMonthKey = (year, month) => `${year}-${month}`;
 const parseMonthKey = (key) => {
@@ -46,30 +48,34 @@ const collectMonthOptions = (transactions, _locale, fallbackKey) => {
 };
 
 const formatDelta = (current, previous) => {
-  if (!previous) return '—';
+  if (!previous) return '-';
   const value = ((current - previous) / previous) * 100;
-  if (!Number.isFinite(value)) return '—';
+  if (!Number.isFinite(value)) return '-';
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 };
 
-const aggregateStats = (transactions) => {
-  return transactions.reduce(
+const aggregateStats = (transactions, additionalExpense = 0) => {
+  const stats = transactions.reduce(
     (acc, tx) => {
       const amount = Number(tx.amount) || 0;
       if (tx.type === 'income') acc.income += amount;
       else acc.expense += amount;
-      acc.net = acc.income - acc.expense;
       acc.count += 1;
       return acc;
     },
-    { income: 0, expense: 0, net: 0, count: 0 }
+    { income: 0, expense: 0, count: 0 }
   );
+  if (additionalExpense) {
+    stats.expense += additionalExpense;
+  }
+  stats.net = stats.income - stats.expense;
+  return stats;
 };
 
 const OverviewPage = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { transactions, goals, budgets } = useData();
+  const { transactions, goals, budgets, categories } = useData();
   const { settings } = useSettings();
   const now = new Date();
   const currentKey = buildMonthKey(now.getFullYear(), now.getMonth());
@@ -110,6 +116,27 @@ const OverviewPage = () => {
     });
   }, [transactions, comparisonMonth]);
 
+  const extraExpenses = useMemo(() => {
+    const budgetSpent = budgets.reduce((sum, budget) => sum + (Number(budget.spent) || 0), 0);
+    const goalSavings = goals.reduce((sum, goal) => sum + (Number(goal.saved) || 0), 0);
+    return {
+      budgetSpent,
+      goalSavings,
+      total: budgetSpent + goalSavings
+    };
+  }, [budgets, goals]);
+
+  const categoryLookup = useMemo(
+    () =>
+      categories.reduce((acc, category) => {
+        if (category.name) {
+          acc[category.name] = category;
+        }
+        return acc;
+      }, {}),
+    [categories]
+  );
+
   const topExpenseCategory = useMemo(() => {
     const expenses = primaryTransactions.filter((tx) => tx.type === 'expense');
     if (!expenses.length) return null;
@@ -125,7 +152,7 @@ const OverviewPage = () => {
   }, [primaryTransactions, t]);
 
 
-  const primaryStats = useMemo(() => aggregateStats(primaryTransactions), [primaryTransactions]);
+  const primaryStats = useMemo(() => aggregateStats(primaryTransactions, extraExpenses.total), [primaryTransactions, extraExpenses]);
   const previousStats = useMemo(() => aggregateStats(previousTransactions), [previousTransactions]);
   const comparisonStats = useMemo(() => aggregateStats(comparisonTransactions), [comparisonTransactions]);
 
@@ -148,13 +175,14 @@ const OverviewPage = () => {
   const monthlyNet = primaryStats.net;
   const yearlyNet = useMemo(() => {
     const { year } = parseMonthKey(primaryMonth);
-    return transactions.reduce((acc, tx) => {
+    const base = transactions.reduce((acc, tx) => {
       const date = new Date(tx.date);
       if (Number.isNaN(date.getTime()) || date.getFullYear() !== year) return acc;
       const amount = Number(tx.amount) || 0;
       return acc + (tx.type === 'income' ? amount : -amount);
     }, 0);
-  }, [transactions, primaryMonth]);
+    return base - extraExpenses.total;
+  }, [transactions, primaryMonth, extraExpenses]);
 
   const alerts = useMemo(() => {
     const list = [];
@@ -219,19 +247,42 @@ const OverviewPage = () => {
     }, {});
     return Object.entries(grouped)
       .sort(([a], [b]) => (a > b ? 1 : -1))
-      .map(([, value]) => value)
+      .map(([, value]) => ({ ...value, expense: -value.expense }))
       .slice(-8);
   }, [transactions]);
 
   const categorySeries = useMemo(() => {
-    const grouped = transactions.reduce((acc, tx) => {
-      if (!tx.category) return acc;
-      if (!acc[tx.category]) acc[tx.category] = 0;
-      acc[tx.category] += Number(tx.amount) || 0;
-      return acc;
-    }, {});
-    return Object.entries(grouped).map(([name, value]) => ({ name, value }));
-  }, [transactions]);
+    const grouped = {
+      income: {},
+      expense: {}
+    };
+    transactions.forEach((tx) => {
+      if (!tx.category) return;
+      const type = tx.type === 'income' ? 'income' : 'expense';
+      if (!grouped[type][tx.category]) {
+        grouped[type][tx.category] = {
+          name: tx.category,
+          value: 0,
+          color: categoryLookup[tx.category]?.color || CATEGORY_FALLBACK[type]
+        };
+      }
+      grouped[type][tx.category].value += Number(tx.amount) || 0;
+    });
+    return {
+      income: Object.values(grouped.income),
+      expense: Object.values(grouped.expense)
+    };
+  }, [transactions, categoryLookup]);
+
+  const categoryTotals = useMemo(
+    () => ({
+      income: categorySeries.income.reduce((sum, entry) => sum + entry.value, 0),
+      expense: categorySeries.expense.reduce((sum, entry) => sum + entry.value, 0)
+    }),
+    [categorySeries]
+  );
+
+  const hasCategoryData = categorySeries.income.length > 0 || categorySeries.expense.length > 0;
 
   const recentTransactions = primaryTransactions.slice(0, 4);
 
@@ -395,10 +446,16 @@ const OverviewPage = () => {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={weeklySeries}>
                 <CartesianGrid vertical={false} stroke="rgba(148, 163, 184, 0.25)" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} hide />
-                <Tooltip />
-                <Bar dataKey="income" stackId="cash" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="expense" stackId="cash" fill="#f97316" radius={[8, 8, 0, 0]} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} />
+                <YAxis axisLine={false} tickLine={false} />
+                <Tooltip
+                  formatter={(value, name) => [
+                    currencyFormatter.format(Math.abs(value)),
+                    t(`dashboard.${name === 'income' ? 'income' : 'expenses'}`)
+                  ]}
+                />
+                <Bar dataKey="income" fill="#10b981" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="expense" fill="#ef4444" radius={[0, 0, 6, 6]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -406,17 +463,52 @@ const OverviewPage = () => {
           )}
         </ChartCard>
         <ChartCard title={t('dashboard.allocation')} subtitle={t('dashboard.byCategory')}>
-          {categorySeries.length ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={categorySeries} outerRadius={110} innerRadius={70} paddingAngle={4} dataKey="value">
-                  {categorySeries.map((entry, index) => (
-                    <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+          {hasCategoryData ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {['income', 'expense'].map((type) => (
+                <div key={type} className="space-y-4">
+                  <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-300">
+                    <span>{t(`dashboard.${type === 'income' ? 'income' : 'expenses'}`)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{currencyFormatter.format(categoryTotals[type] || 0)}</span>
+                  </div>
+                  {categorySeries[type].length ? (
+                    <>
+                      <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={categorySeries[type]} innerRadius={45} outerRadius={70} paddingAngle={4} dataKey="value">
+                              {categorySeries[type].map((entry) => (
+                                <Cell key={`${type}-${entry.name}`} fill={entry.color} />
+                              ))}
+                            </Pie>
+                            <Tooltip formatter={(value, name) => [currencyFormatter.format(value), name]} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <ul className="space-y-2 text-xs text-slate-500 dark:text-slate-300">
+                        {categorySeries[type].map((entry) => {
+                          const total = categoryTotals[type];
+                          const percent = total ? Math.round((entry.value / total) * 100) : 0;
+                          return (
+                            <li key={`${type}-legend-${entry.name}`} className="flex items-center justify-between">
+                              <span className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                                {entry.name}
+                              </span>
+                              <span className="font-semibold text-slate-700 dark:text-white">{percent}%</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-xs text-slate-400 dark:border-slate-700">
+                      {t('dashboard.noDataMessage')}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           ) : (
             <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
           )}
@@ -453,18 +545,27 @@ const OverviewPage = () => {
       </button>}>
         {recentTransactions.length ? (
           <div className="grid gap-4">
-            {recentTransactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 text-sm dark:border-slate-800">
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white">{tx.title}</p>
-                  <p className="text-xs text-slate-500">{formatDate(tx.date)}</p>
+            {recentTransactions.map((tx) => {
+              const badgeColor = categoryLookup[tx.category]?.color || (tx.type === 'income' ? CATEGORY_FALLBACK.income : CATEGORY_FALLBACK.expense);
+              return (
+                <div key={tx.id} className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 text-sm dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: badgeColor }} />
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-white">{tx.title}</p>
+                      <p className="text-xs text-slate-500">{formatDate(tx.date)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {tx.type === 'income' ? '+' : '-'}
+                      {currencyFormatter.format(Number(tx.amount) || 0)}
+                    </p>
+                    <p className="text-xs text-slate-400">{tx.category || t('transactions.filters.all')}</p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  <Badge variant={tx.type === 'income' ? 'success' : 'danger'}>{tx.category}</Badge>
-                  <p className="font-semibold text-slate-900 dark:text-white">{tx.type === 'income' ? '+' : '-'}{currencyFormatter.format(Number(tx.amount) || 0)}</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <EmptyState title={t('transactions.empty')} description={t('transactions.emptyDescription')} />

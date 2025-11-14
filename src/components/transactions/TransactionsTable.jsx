@@ -10,7 +10,7 @@ const statusVariant = {
 
 const sortableColumns = new Set(['title', 'date', 'amount']);
 
-const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig, onSort }) => {
+const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig, onSort, categoryColors = {} }) => {
   const { t } = useTranslation();
   const headers = ['title', 'type', 'category', 'date', 'amount', 'status', 'actions'];
   const currency = typeof formatCurrency === 'function' ? formatCurrency : (value) => value;
@@ -49,7 +49,16 @@ const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig,
             <tr key={item.id} className="border-t border-slate-100 text-sm text-slate-600 transition hover:bg-slate-50/60 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60" onClick={() => onEdit?.(item)}>
               <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{item.title}</td>
               <td className="px-6 py-4 capitalize">{t(`transactions.filters.${item.type}`)}</td>
-              <td className="px-6 py-4">{item.category}</td>
+              <td className="px-6 py-4">
+                {item.category ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: categoryColors[item.category] || '#94a3b8' }} />
+                    {item.category}
+                  </span>
+                ) : (
+                  <span className="text-slate-400">{t('transactions.filters.all')}</span>
+                )}
+              </td>
               <td className="px-6 py-4">{formatDate(item.date)}</td>
               <td className="px-6 py-4 font-semibold">{currency(item.amount)}</td>
               <td className="px-6 py-4">

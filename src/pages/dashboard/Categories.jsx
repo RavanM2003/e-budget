@@ -54,10 +54,16 @@ const CategoriesPage = () => {
 
   const handleEdit = (category) => setForm({ ...category });
 
-  const handleDelete = (id) => {
+  const handleDelete = (category) => {
+    const totals = categoryTotals[category.name] || { income: 0, expense: 0 };
+    const inUse = (totals.income || 0) + (totals.expense || 0) > 0;
+    if (inUse) {
+      window.alert(t('categories.deleteBlocked'));
+      return;
+    }
     if (window.confirm(t('categories.deleteConfirm'))) {
-      deleteCategory(id);
-      if (form.id === id) {
+      deleteCategory(category.id);
+      if (form.id === category.id) {
         setForm(defaultForm);
       }
     }
@@ -70,6 +76,7 @@ const CategoriesPage = () => {
           const totals = categoryTotals[item.name] || { income: 0, expense: 0 };
           const net = totals.income - totals.expense;
           const netClass = net >= 0 ? 'text-emerald-500' : 'text-rose-500';
+          const inUse = (totals.income || 0) + (totals.expense || 0) > 0;
           return (
             <div key={item.id} className="rounded-3xl border border-slate-100 bg-white/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/70">
               <div className="flex items-center justify-between">
@@ -77,7 +84,10 @@ const CategoriesPage = () => {
                   <p className="text-lg font-semibold text-slate-800 dark:text-white">{item.name}</p>
                   <p className="text-xs uppercase tracking-wide text-slate-400">{t(`transactions.filters.${item.type || 'expense'}`)}</p>
                 </div>
-                <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                <div className="flex flex-col items-end gap-1">
+                  <span className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  {inUse && <span className="text-xs font-semibold uppercase tracking-wide text-amber-500">{t('categories.inUse')}</span>}
+                </div>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {['income', 'expense'].map((kind) => (
@@ -97,7 +107,12 @@ const CategoriesPage = () => {
                 <button onClick={() => handleEdit(item)} className="rounded-xl border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 hover:border-brand-300 dark:border-slate-700 dark:text-slate-200">
                   {t('actions.edit')}
                 </button>
-                <button onClick={() => handleDelete(item.id)} className="rounded-xl border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10">
+                <button
+                  onClick={() => handleDelete(item)}
+                  disabled={inUse}
+                  title={inUse ? t('categories.deleteBlocked') : undefined}
+                  className="rounded-xl border border-rose-200 px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/10"
+                >
                   {t('actions.delete')}
                 </button>
               </div>

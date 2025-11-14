@@ -107,7 +107,9 @@
     "add": "Kateqoriya əlavə et",
     "empty": "Kateqoriya yoxdur",
     "emptyDescription": "Əməliyyatları qruplaşdırmaq üçün kateqoriya yaradın.",
-    "deleteConfirm": "Bu kateqoriyanı silmək istədiyinizə əminsiniz?"
+    "deleteConfirm": "Bu kateqoriyanı silmək istədiyinizə əminsiniz?",
+    "inUse": "Əməliyyatlarda aktivdir",
+    "deleteBlocked": "Bu kateqoriyanın əməliyyatları olduğu üçün silinməsi bağlıdır"
   },
   "budgets": {
     "title": "Büdcələr",

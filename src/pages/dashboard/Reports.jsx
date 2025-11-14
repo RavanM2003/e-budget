@@ -16,12 +16,14 @@ import {
   AreaChart,
   Area,
   CartesianGrid,
-  Legend
+  Legend,
+  Cell
 } from 'recharts';
 
 const groupingOptions = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
 const chartTypes = ['area', 'line', 'bar'];
 const metricOptions = ['income', 'expense', 'net'];
+const DEFAULT_CATEGORY_COLOR = '#94a3b8';
 
 const getWeekNumber = (date) => {
   const firstDay = new Date(date.getFullYear(), 0, 1);
@@ -71,6 +73,17 @@ const ReportsPage = () => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
   const { transactions, categories } = useData();
+
+  const categoryColorMap = useMemo(
+    () =>
+      categories.reduce((acc, category) => {
+        if (category.name) {
+          acc[category.name] = category.color;
+        }
+        return acc;
+      }, {}),
+    [categories]
+  );
 
   const defaultStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
   const defaultEnd = new Date().toISOString().split('T')[0];
@@ -157,6 +170,7 @@ const ReportsPage = () => {
       income: value.income,
       expense: value.expense,
       net: value.income - value.expense,
+      color: categoryColorMap[name] || DEFAULT_CATEGORY_COLOR,
       value:
         filters.metric === 'income'
           ? value.income
@@ -164,7 +178,7 @@ const ReportsPage = () => {
           ? value.expense
           : value.income - value.expense
     }));
-  }, [filtered, filters.metric, t]);
+  }, [filtered, filters.metric, t, categoryColorMap]);
 
   const netSeries = useMemo(() => {
     const grouped = filtered.reduce((acc, tx) => {
@@ -391,7 +405,11 @@ const ReportsPage = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
                   <Tooltip />
-                  <Bar dataKey="value" fill={metricColor} radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                    {categorySeries.map((entry) => (
+                      <Cell key={entry.name} fill={entry.color || metricColor} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -416,7 +434,12 @@ const ReportsPage = () => {
                     .sort((a, b) => b.value - a.value)
                     .map((row) => (
                       <tr key={row.name} className="border-t border-slate-100 dark:border-slate-800">
-                        <td className="px-3 py-2">{row.name}</td>
+                        <td className="px-3 py-2">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color || DEFAULT_CATEGORY_COLOR }} />
+                            {row.name}
+                          </span>
+                        </td>
                         <td className="px-3 py-2 text-right">{currencyFormatter.format(row.value)}</td>
                       </tr>
                     ))}

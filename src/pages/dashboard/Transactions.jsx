@@ -26,7 +26,7 @@ const aggregateCategory = (list) => {
 const TransactionsPage = () => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
-  const { transactions, saveTransaction, deleteTransaction, budgets, goals, saveBudget, saveGoal } = useData();
+  const { transactions, saveTransaction, deleteTransaction, budgets, goals, saveBudget, saveGoal, categories } = useData();
   const [filters, setFilters] = useState({ query: '', type: 'all', startDate: '', endDate: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -43,6 +43,17 @@ const TransactionsPage = () => {
         currency: settings.currency || 'AZN'
       }),
     [i18n.language, settings.currency]
+  );
+
+  const categoryColors = useMemo(
+    () =>
+      categories.reduce((acc, category) => {
+        if (category.name) {
+          acc[category.name] = category.color;
+        }
+        return acc;
+      }, {}),
+    [categories]
   );
 
   const handleFilterChange = (nextFilters) => {
@@ -185,6 +196,7 @@ const TransactionsPage = () => {
                 formatCurrency={(value) => currencyFormatter.format(value)}
                 sortConfig={sortConfig}
                 onSort={requestSort}
+                categoryColors={categoryColors}
               />
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
                 <p>
