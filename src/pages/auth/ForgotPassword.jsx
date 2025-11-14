@@ -15,9 +15,9 @@ const ForgotPasswordPage = () => {
     setStatus('loading');
     setMessage('');
     try {
-      await forgotPassword(email);
+      const response = await forgotPassword(email);
       setStatus('success');
-      setMessage('Check your inbox for the reset link.');
+      setMessage(response?.message || 'Check your inbox for the reset link.');
     } catch (error) {
       setStatus('error');
       setMessage(error.message || 'Unable to send reset link');

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-const TransactionFilters = ({ filters, onChange }) => {
+const TransactionFilters = ({ filters, onChange, types = [] }) => {
   const { t } = useTranslation();
   return (
     <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white/80 p-4 dark:border-slate-800 dark:bg-slate-900/60 md:grid-cols-4">
@@ -17,8 +17,11 @@ const TransactionFilters = ({ filters, onChange }) => {
         onChange={(event) => onChange({ ...filters, type: event.target.value })}
       >
         <option value="all">{t('transactions.filters.all')}</option>
-        <option value="income">{t('transactions.filters.income')}</option>
-        <option value="expense">{t('transactions.filters.expense')}</option>
+        {types.map((type) => (
+          <option key={type.id} value={type.slug}>
+            {type.name}
+          </option>
+        ))}
       </select>
       <input
         type="date"

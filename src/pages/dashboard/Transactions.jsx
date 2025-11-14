@@ -6,6 +6,7 @@ import TransactionFilters from '../../components/transactions/TransactionFilters
 import TransactionsTable from '../../components/transactions/TransactionsTable';
 import TransactionModal from '../../components/transactions/TransactionModal';
 import EmptyState from '../../components/common/EmptyState';
+import Skeleton from '../../components/common/Skeleton';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
 
@@ -26,14 +27,13 @@ const aggregateCategory = (list) => {
 const TransactionsPage = () => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
-  const { transactions, saveTransaction, deleteTransaction, budgets, goals, saveBudget, saveGoal, categories } = useData();
+  const { transactions, saveTransaction, deleteTransaction, goals, saveGoal, categories, loading: dataLoading, error: dataError, types } = useData();
   const [filters, setFilters] = useState({ query: '', type: 'all', startDate: '', endDate: '' });
   const [modalOpen, setModalOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
   const [page, setPage] = useState(1);
   const [categoryInsight, setCategoryInsight] = useState({ category: 'all', startDate: '', endDate: '' });
-  const [budgetAdjust, setBudgetAdjust] = useState({ id: '', mode: 'spend', amount: '' });
   const [goalAdjust, setGoalAdjust] = useState({ id: '', amount: '' });
 
   const currencyFormatter = useMemo(
@@ -45,11 +45,20 @@ const TransactionsPage = () => {
     [i18n.language, settings.currency]
   );
 
+  const typeLookup = useMemo(
+    () =>
+      types.reduce((acc, type) => {
+        acc[type.slug] = type.name;
+        return acc;
+      }, {}),
+    [types]
+  );
+
   const categoryColors = useMemo(
     () =>
       categories.reduce((acc, category) => {
         if (category.name) {
-          acc[category.name] = category.color;
+          acc[category.name] = category.color || '#94a3b8';
         }
         return acc;
       }, {}),
@@ -64,7 +73,7 @@ const TransactionsPage = () => {
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {
       const matchesQuery = tx.title.toLowerCase().includes(filters.query.toLowerCase());
-      const matchesType = filters.type === 'all' || tx.type === filters.type;
+      const matchesType = filters.type === 'all' || tx.typeKey === filters.type;
       const date = new Date(tx.date);
       const afterStart = !filters.startDate || date >= new Date(filters.startDate);
       const beforeEnd = !filters.endDate || date <= new Date(filters.endDate);
@@ -107,6 +116,12 @@ const TransactionsPage = () => {
     }
   }, [totalPages, page]);
 
+  useEffect(() => {
+    if (filters.type !== 'all' && !types.some((type) => type.slug === filters.type)) {
+      setFilters((prev) => ({ ...prev, type: 'all' }));
+    }
+  }, [types, filters.type]);
+
   const requestSort = (key) => {
     setSortConfig((prev) => {
       if (prev.key === key) {
@@ -117,16 +132,25 @@ const TransactionsPage = () => {
     setPage(1);
   };
 
-  const handleSave = (payload) => {
+  const handleSave = async (payload) => {
     const base = selected ? { id: selected.id } : {};
-    saveTransaction({ ...base, ...payload, amount: Number(payload.amount) });
-    setSelected(null);
-    setModalOpen(false);
+    try {
+      await saveTransaction({ ...base, ...payload, amount: Number(payload.amount) });
+      setSelected(null);
+      setModalOpen(false);
+    } catch (err) {
+      window.alert(err.message || 'Unable to save transaction');
+    }
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm(t('transactions.deleteConfirm'))) {
-      deleteTransaction(id);
+  const handleDelete = async (id) => {
+    if (!window.confirm(t('transactions.deleteConfirm'))) {
+      return;
+    }
+    try {
+      await deleteTransaction(id);
+    } catch (err) {
+      window.alert(err.message || 'Unable to delete transaction');
     }
   };
 
@@ -142,28 +166,18 @@ const TransactionsPage = () => {
     return aggregateCategory(subset);
   }, [transactions, categoryInsight]);
 
-  const handleBudgetAdjust = (event) => {
-    event.preventDefault();
-    const budget = budgets.find((item) => item.id === budgetAdjust.id);
-    if (!budget || !budgetAdjust.amount) return;
-    const amount = Number(budgetAdjust.amount);
-    if (Number.isNaN(amount)) return;
-    if (budgetAdjust.mode === 'limit') {
-      saveBudget({ ...budget, limit: Number(budget.limit) + amount });
-    } else {
-      saveBudget({ ...budget, spent: Math.max(0, Number(budget.spent) + amount) });
-    }
-    setBudgetAdjust((prev) => ({ ...prev, amount: '' }));
-  };
-
-  const handleGoalAdjust = (event) => {
+  const handleGoalAdjust = async (event) => {
     event.preventDefault();
     const goal = goals.find((item) => item.id === goalAdjust.id);
     if (!goal || !goalAdjust.amount) return;
     const amount = Number(goalAdjust.amount);
     if (Number.isNaN(amount)) return;
-    saveGoal({ ...goal, saved: Math.max(0, Number(goal.saved) + amount) });
-    setGoalAdjust((prev) => ({ ...prev, amount: '' }));
+    try {
+      await saveGoal({ ...goal, saved: Math.max(0, Number(goal.saved) + amount) });
+      setGoalAdjust((prev) => ({ ...prev, amount: '' }));
+    } catch (err) {
+      window.alert(err.message || 'Unable to update goal');
+    }
   };
 
   const categoryOptions = useMemo(() => Array.from(new Set(transactions.map((tx) => tx.category).filter(Boolean))), [transactions]);
@@ -171,8 +185,19 @@ const TransactionsPage = () => {
   const showingFrom = sortedTransactions.length ? (page - 1) * pageSize + 1 : 0;
   const showingTo = Math.min(sortedTransactions.length, page * pageSize);
 
+  if (dataLoading) {
+    return (
+      <div className="space-y-6">
+        <Card title={t('transactions.title')}>
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {dataError && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{dataError}</div>}
       <Card
         title={t('transactions.title')}
         action={
@@ -182,7 +207,7 @@ const TransactionsPage = () => {
           </button>
         }
       >
-        <TransactionFilters filters={filters} onChange={handleFilterChange} />
+        <TransactionFilters filters={filters} onChange={handleFilterChange} types={types} />
         <div className="mt-6 space-y-4">
           {sortedTransactions.length ? (
             <>
@@ -197,6 +222,7 @@ const TransactionsPage = () => {
                 sortConfig={sortConfig}
                 onSort={requestSort}
                 categoryColors={categoryColors}
+                typeLookup={typeLookup}
               />
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
                 <p>
@@ -275,34 +301,6 @@ const TransactionsPage = () => {
 
         <Card title={t('transactions.title')} subtitle={t('dashboard.quickActions')}>
           <div className="space-y-4">
-            <form className="grid gap-3" onSubmit={handleBudgetAdjust}>
-              <p className="text-xs uppercase text-slate-400">{t('budgets.title')}</p>
-              <select className="rounded-2xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" value={budgetAdjust.id} onChange={(event) => setBudgetAdjust((prev) => ({ ...prev, id: event.target.value }))}>
-                <option value="">{t('transactions.filters.all')}</option>
-                {budgets.map((budget) => (
-                  <option key={budget.id} value={budget.id}>
-                    {budget.title}
-                  </option>
-                ))}
-              </select>
-              <div className="flex flex-wrap gap-2">
-                <label className="inline-flex items-center gap-1 text-xs text-slate-500">
-                  <input type="radio" name="budget-mode" value="spend" checked={budgetAdjust.mode === 'spend'} onChange={(event) => setBudgetAdjust((prev) => ({ ...prev, mode: event.target.value }))} />
-                  {t('actions.addExpense')}
-                </label>
-                <label className="inline-flex items-center gap-1 text-xs text-slate-500">
-                  <input type="radio" name="budget-mode" value="limit" checked={budgetAdjust.mode === 'limit'} onChange={(event) => setBudgetAdjust((prev) => ({ ...prev, mode: event.target.value }))} />
-                  {t('budgets.limit')}
-                </label>
-              </div>
-              <div className="flex gap-2">
-                <input type="number" className="flex-1 rounded-2xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" placeholder="0.00" value={budgetAdjust.amount} onChange={(event) => setBudgetAdjust((prev) => ({ ...prev, amount: event.target.value }))} />
-                <button type="submit" className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
-                  {t('actions.update')}
-                </button>
-              </div>
-            </form>
-
             <form className="grid gap-3" onSubmit={handleGoalAdjust}>
               <p className="text-xs uppercase text-slate-400">{t('goals.title')}</p>
               <select className="rounded-2xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700" value={goalAdjust.id} onChange={(event) => setGoalAdjust((prev) => ({ ...prev, id: event.target.value }))}>

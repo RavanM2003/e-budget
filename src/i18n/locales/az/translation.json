@@ -204,8 +204,8 @@
     "next": "Sonrakı",
     "status": {
       "pending": "Gözləyir",
-      "cleared": "Təsdiqlənib",
-      "scheduled": "Planlaşdırılıb"
+      "completed": "Tamamlanıb",
+      "cancelled": "Ləğv edilib"
     }
   }
 }

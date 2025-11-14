@@ -3,14 +3,14 @@ import Badge from '../common/Badge';
 import { formatDate } from '../../utils/date';
 
 const statusVariant = {
-  cleared: 'success',
+  completed: 'success',
   pending: 'warning',
-  scheduled: 'brand'
+  cancelled: 'danger'
 };
 
 const sortableColumns = new Set(['title', 'date', 'amount']);
 
-const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig, onSort, categoryColors = {} }) => {
+const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig, onSort, categoryColors = {}, typeLookup = {} }) => {
   const { t } = useTranslation();
   const headers = ['title', 'type', 'category', 'date', 'amount', 'status', 'actions'];
   const currency = typeof formatCurrency === 'function' ? formatCurrency : (value) => value;
@@ -48,7 +48,7 @@ const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig,
           {data.map((item) => (
             <tr key={item.id} className="border-t border-slate-100 text-sm text-slate-600 transition hover:bg-slate-50/60 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60" onClick={() => onEdit?.(item)}>
               <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{item.title}</td>
-              <td className="px-6 py-4 capitalize">{t(`transactions.filters.${item.type}`)}</td>
+              <td className="px-6 py-4 capitalize">{typeLookup[item.typeKey] || t(`transactions.filters.${item.type}`, { defaultValue: item.typeKey || item.type })}</td>
               <td className="px-6 py-4">
                 {item.category ? (
                   <span className="inline-flex items-center gap-2">
@@ -62,7 +62,11 @@ const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig,
               <td className="px-6 py-4">{formatDate(item.date)}</td>
               <td className="px-6 py-4 font-semibold">{currency(item.amount)}</td>
               <td className="px-6 py-4">
-                <Badge variant={statusVariant[item.status] || 'default'}>{t(`common.status.${item.status}`)}</Badge>
+                {item.status ? (
+                  <Badge variant={statusVariant[item.status] || 'default'}>{t(`common.status.${item.status}`, { defaultValue: item.status })}</Badge>
+                ) : (
+                  <span className="text-slate-400">-</span>
+                )}
               </td>
               <td className="px-6 py-4">
                 <div className="flex gap-2">

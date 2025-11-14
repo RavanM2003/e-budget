@@ -7,7 +7,7 @@ import { formatDate } from '../../utils/date';
 const SearchPalette = ({ open, onClose }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { transactions, budgets, categories, goals } = useData();
+  const { transactions, categories, goals, loading } = useData();
   const [query, setQuery] = useState('');
   const inputRef = useRef(null);
 
@@ -21,7 +21,7 @@ const SearchPalette = ({ open, onClose }) => {
   }, [open]);
 
   const sections = useMemo(() => {
-    if (!query.trim()) return [];
+    if (!query.trim() || loading) return [];
     const term = query.toLowerCase();
     return [
       {
@@ -41,14 +41,6 @@ const SearchPalette = ({ open, onClose }) => {
           .map((category) => ({ id: category.id, title: category.name, subtitle: category.type === 'income' ? t('transactions.filters.income') : t('transactions.filters.expense'), to: '/categories' }))
       },
       {
-        label: t('budgets.title'),
-        type: 'budgets',
-        items: budgets
-          .filter((budget) => budget.title.toLowerCase().includes(term))
-          .slice(0, 5)
-          .map((budget) => ({ id: budget.id, title: budget.title, subtitle: t('budgets.limit') + ': ' + budget.limit, to: '/budgets' }))
-      },
-      {
         label: t('goals.title'),
         type: 'goals',
         items: goals
@@ -57,7 +49,7 @@ const SearchPalette = ({ open, onClose }) => {
           .map((goal) => ({ id: goal.id, title: goal.title, subtitle: `${goal.saved}/${goal.target}`, to: '/goals' }))
       }
     ].filter((section) => section.items.length);
-  }, [query, transactions, categories, budgets, goals, t]);
+  }, [query, transactions, categories, goals, loading, t]);
 
   const handleNavigate = (to) => {
     onClose();
@@ -77,7 +69,9 @@ const SearchPalette = ({ open, onClose }) => {
           placeholder={t('forms.search')}
         />
         <div className="mt-4 max-h-80 space-y-4 overflow-auto">
-          {sections.length === 0 ? (
+          {loading ? (
+            <p className="text-sm text-slate-500">Loading data...</p>
+          ) : sections.length === 0 ? (
             <p className="text-sm text-slate-500">{t('common.empty')}</p>
           ) : (
             sections.map((section) => (

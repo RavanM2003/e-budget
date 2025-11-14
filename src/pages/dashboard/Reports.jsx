@@ -2,6 +2,7 @@
 import { useTranslation } from 'react-i18next';
 import Card from '../../components/common/Card';
 import EmptyState from '../../components/common/EmptyState';
+import Skeleton from '../../components/common/Skeleton';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { formatDate } from '../../utils/date';
@@ -72,7 +73,7 @@ const buildGroupingKey = (date, grouping, locale, t) => {
 const ReportsPage = () => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
-  const { transactions, categories } = useData();
+  const { transactions, categories, loading: dataLoading, error: dataError } = useData();
 
   const categoryColorMap = useMemo(
     () =>
@@ -312,8 +313,19 @@ const ReportsPage = () => {
     );
   };
 
+  if (dataLoading) {
+    return (
+      <div className="space-y-6">
+        <Card title={t('reports.title')}>
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {dataError && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{dataError}</div>}
       <Card title={t('reports.filters.title')}>
         <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
           <label className="space-y-1 text-sm">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Menu, Moon, Sun, LogOut } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,14 +12,14 @@ const Topbar = ({ onMobileSidebar }) => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
-  const initials = user?.name
-    ? user.name
-        .split(' ')
-        .map((part) => part[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : 'EB';
+  const initials = useMemo(() => {
+    if (user?.email) {
+      return user.email.slice(0, 2).toUpperCase();
+    }
+    return 'EB';
+  }, [user]);
+
+  const displayName = user?.email || 'User';
 
   return (
     <>
@@ -44,7 +44,7 @@ const Topbar = ({ onMobileSidebar }) => {
               {initials}
             </span>
             <div className="hidden text-left lg:block">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">{displayName}</p>
               <p className="text-xs text-slate-500">{t('app.name')}</p>
             </div>
           </button>

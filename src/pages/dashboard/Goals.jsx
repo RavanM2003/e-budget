@@ -5,42 +5,67 @@ import GoalCard from '../../components/dashboard/GoalCard';
 import EmptyState from '../../components/common/EmptyState';
 import { useData } from '../../contexts/DataContext';
 import { Plus } from 'lucide-react';
+import Skeleton from '../../components/common/Skeleton';
 
 const defaultForm = { id: null, title: '', target: '', saved: '', due: '' };
 
 const GoalsPage = () => {
   const { t } = useTranslation();
-  const { goals, saveGoal, deleteGoal } = useData();
+  const { goals, saveGoal, deleteGoal, loading: dataLoading, error: dataError } = useData();
   const [form, setForm] = useState(defaultForm);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.title.trim()) return;
-    saveGoal({ ...form, title: form.title.trim(), target: Number(form.target) || 0, saved: Number(form.saved) || 0 });
-    setForm(defaultForm);
+    try {
+      await saveGoal({ ...form, title: form.title.trim(), target: Number(form.target) || 0, saved: Number(form.saved) || 0 });
+      setForm(defaultForm);
+    } catch (err) {
+      window.alert(err.message || 'Unable to save goal');
+    }
   };
 
   const handleEdit = (goal) => setForm({ ...goal, target: String(goal.target), saved: String(goal.saved || '') });
 
-  const handleDelete = (id) => {
-    if (window.confirm(t('goals.deleteConfirm'))) {
-      deleteGoal(id);
+  const handleDelete = async (id) => {
+    if (!window.confirm(t('goals.deleteConfirm'))) {
+      return;
+    }
+    try {
+      await deleteGoal(id);
       if (form.id === id) {
         setForm(defaultForm);
       }
+    } catch (err) {
+      window.alert(err.message || 'Unable to delete goal');
     }
   };
 
-  const handleAddSavings = (goal) => {
+  const handleAddSavings = async (goal) => {
     const input = window.prompt(t('actions.addSavings'));
     if (!input) return;
     const amount = Number(input);
     if (Number.isNaN(amount) || amount <= 0) return;
-    saveGoal({ ...goal, saved: (Number(goal.saved) || 0) + amount });
+    try {
+      await saveGoal({ ...goal, saved: (Number(goal.saved) || 0) + amount });
+    } catch (err) {
+      window.alert(err.message || 'Unable to update goal');
+    }
   };
+
+  if (dataLoading) {
+    return (
+      <div className="space-y-6">
+        <Card title={t('goals.add')}>
+          <Skeleton className="h-48 w-full" />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {dataError && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{dataError}</div>}
       <Card title={form.id ? t('actions.update') : t('goals.add')}>
         <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-4">
           <label className="space-y-1 text-sm">

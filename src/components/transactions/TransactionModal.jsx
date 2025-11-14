@@ -3,37 +3,55 @@ import { useTranslation } from 'react-i18next';
 import Modal from '../common/Modal';
 import { useData } from '../../contexts/DataContext';
 
-const getDefaultForm = () => ({
+const getDefaultForm = (statusId, typeSlug) => ({
   title: '',
-  type: 'expense',
-  category: '',
+  type: typeSlug || '',
+  categoryId: '',
   amount: '',
   date: new Date().toISOString().split('T')[0],
-  status: 'pending'
+  statusId: statusId || ''
 });
 
-const composeForm = (payload) => ({
-  ...getDefaultForm(),
+const composeForm = (payload, statusId, typeSlug) => ({
+  ...getDefaultForm(statusId, typeSlug),
   ...(payload || {})
 });
 
 const TransactionModal = ({ open, onClose, onSave, initial }) => {
   const { t } = useTranslation();
-  const { categories } = useData();
-  const [form, setForm] = useState(composeForm(initial));
+  const { categories, statuses, types } = useData();
+  const fallbackStatusId = statuses[0]?.id || '';
+  const fallbackTypeSlug = initial?.type || types[0]?.slug || '';
+  const [form, setForm] = useState(composeForm(initial, fallbackStatusId, fallbackTypeSlug));
 
   useEffect(() => {
-    setForm(composeForm(initial));
-  }, [initial, open]);
+    const typeBase = initial?.type || types[0]?.slug || '';
+    setForm(composeForm(initial, statuses[0]?.id || '', typeBase));
+  }, [initial, statuses, types]);
+
+  useEffect(() => {
+    if (!form.type && types.length) {
+      setForm((prev) => ({ ...prev, type: types[0].slug }));
+    }
+  }, [form.type, types]);
 
   const typeCategories = useMemo(() => categories.filter((category) => category.type === form.type), [categories, form.type]);
 
   useEffect(() => {
-    if (!typeCategories.length && !form.category) return;
-    if (!form.category || !typeCategories.some((category) => category.name === form.category)) {
-      setForm((prev) => ({ ...prev, category: typeCategories[0]?.name || '' }));
+    if (!typeCategories.length) {
+      setForm((prev) => ({ ...prev, categoryId: '' }));
+      return;
     }
-  }, [typeCategories, form.category]);
+    if (!form.categoryId || !typeCategories.some((category) => category.id === form.categoryId)) {
+      setForm((prev) => ({ ...prev, categoryId: typeCategories[0]?.id || '' }));
+    }
+  }, [typeCategories, form.categoryId]);
+
+  useEffect(() => {
+    if (!form.statusId && fallbackStatusId) {
+      setForm((prev) => ({ ...prev, statusId: fallbackStatusId }));
+    }
+  }, [fallbackStatusId, form.statusId]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -42,16 +60,16 @@ const TransactionModal = ({ open, onClose, onSave, initial }) => {
       setForm((prev) => ({
         ...prev,
         type: value,
-        category: nextCategories[0]?.name || ''
+        categoryId: nextCategories[0]?.id || ''
       }));
       return;
     }
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    onSave?.({ ...form, amount: Number(form.amount) });
+    await onSave?.({ ...form, amount: Number(form.amount) });
   };
 
   return (
@@ -73,9 +91,9 @@ const TransactionModal = ({ open, onClose, onSave, initial }) => {
         <label className="block space-y-2 text-sm">
           <span className="font-medium">{t('transactions.fields.category')}</span>
           {typeCategories.length ? (
-            <select name="category" value={form.category} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
+            <select name="categoryId" value={form.categoryId} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
               {typeCategories.map((category) => (
-                <option key={category.id} value={category.name}>
+                <option key={category.id} value={category.id}>
                   {category.name}
                 </option>
               ))}
@@ -88,20 +106,33 @@ const TransactionModal = ({ open, onClose, onSave, initial }) => {
         </label>
         <label className="block space-y-2 text-sm">
           <span className="font-medium">{t('transactions.type')}</span>
-          <select name="type" value={form.type} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
-            <option value="income">{t('transactions.filters.income')}</option>
-            <option value="expense">{t('transactions.filters.expense')}</option>
-          </select>
+          {types.length ? (
+            <select name="type" value={form.type} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
+              {types.map((type) => (
+                <option key={type.id} value={type.slug}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">{t('categories.emptyDescription')}</div>
+          )}
         </label>
         <label className="block space-y-2 text-sm">
           <span className="font-medium">{t('transactions.status')}</span>
-          <select name="status" value={form.status} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
-            {['pending', 'cleared', 'scheduled'].map((state) => (
-              <option key={state} value={state}>
-                {t(`common.status.${state}`)}
-              </option>
-            ))}
-          </select>
+          {statuses.length ? (
+            <select name="statusId" value={form.statusId || ''} onChange={handleChange} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
+              {statuses.map((status) => (
+                <option key={status.id} value={status.id}>
+                  {status.slug ? t(`common.status.${status.slug}`, { defaultValue: status.name }) : status.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="w-full rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+              {t('transactions.emptyDescription')}
+            </div>
+          )}
         </label>
         <div className="flex flex-col gap-3 sm:flex-row">
           <button type="button" onClick={onClose} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300">

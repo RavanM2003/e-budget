@@ -9,7 +9,6 @@ import ForgotPasswordPage from '../pages/auth/ForgotPassword';
 import OverviewPage from '../pages/dashboard/Overview';
 import TransactionsPage from '../pages/dashboard/Transactions';
 import CategoriesPage from '../pages/dashboard/Categories';
-import BudgetsPage from '../pages/dashboard/Budgets';
 import GoalsPage from '../pages/dashboard/Goals';
 import ReportsPage from '../pages/dashboard/Reports';
 
@@ -29,7 +28,6 @@ const AppRouter = () => (
         <Route path="/dashboard" element={<OverviewPage />} />
         <Route path="/transactions" element={<TransactionsPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
-        <Route path="/budgets" element={<BudgetsPage />} />
         <Route path="/goals" element={<GoalsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
       </Route>

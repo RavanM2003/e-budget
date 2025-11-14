@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowDownRight, ArrowUpRight, CreditCard, PiggyBank, Wallet2 } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, CreditCard, PiggyBank } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import StatCard from '../../components/dashboard/StatCard';
 import Card from '../../components/common/Card';
 import ChartCard from '../../components/dashboard/ChartCard';
 import QuickActionCard from '../../components/dashboard/QuickActionCard';
-import BudgetCard from '../../components/dashboard/BudgetCard';
 import GoalCard from '../../components/dashboard/GoalCard';
 import EmptyState from '../../components/common/EmptyState';
+import Skeleton from '../../components/common/Skeleton';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { formatDate } from '../../utils/date';
@@ -75,7 +75,7 @@ const aggregateStats = (transactions, additionalExpense = 0) => {
 const OverviewPage = () => {
   const navigate = useNavigate();
   const { t, i18n } = useTranslation();
-  const { transactions, goals, budgets, categories } = useData();
+  const { transactions, goals, categories, loading: dataLoading, error: dataError } = useData();
   const { settings } = useSettings();
   const now = new Date();
   const currentKey = buildMonthKey(now.getFullYear(), now.getMonth());
@@ -117,14 +117,12 @@ const OverviewPage = () => {
   }, [transactions, comparisonMonth]);
 
   const extraExpenses = useMemo(() => {
-    const budgetSpent = budgets.reduce((sum, budget) => sum + (Number(budget.spent) || 0), 0);
     const goalSavings = goals.reduce((sum, goal) => sum + (Number(goal.saved) || 0), 0);
     return {
-      budgetSpent,
       goalSavings,
-      total: budgetSpent + goalSavings
+      total: goalSavings
     };
-  }, [budgets, goals]);
+  }, [goals]);
 
   const categoryLookup = useMemo(
     () =>
@@ -169,7 +167,7 @@ const OverviewPage = () => {
     { title: t('dashboard.income'), value: primaryStats.income, delta: formatDelta(primaryStats.income, previousStats.income), icon: ArrowUpRight, trend: primaryStats.income >= previousStats.income ? 'up' : 'down' },
     { title: t('dashboard.expenses'), value: primaryStats.expense, delta: formatDelta(primaryStats.expense, previousStats.expense), icon: ArrowDownRight, trend: primaryStats.expense <= previousStats.expense ? 'up' : 'down' },
     { title: t('dashboard.savings'), value: Math.max(primaryStats.net, 0), delta: formatDelta(primaryStats.net, previousStats.net), icon: PiggyBank, trend: primaryStats.net >= previousStats.net ? 'up' : 'down' },
-    { title: t('dashboard.availableBudget'), value: Math.max(0, primaryStats.income - primaryStats.expense), delta: formatDelta(primaryStats.income - primaryStats.expense, previousStats.income - previousStats.expense), icon: Wallet2, trend: primaryStats.income - primaryStats.expense >= previousStats.income - previousStats.expense ? 'up' : 'down' }
+    { title: t('dashboard.availableBudget'), value: Math.max(0, primaryStats.income - primaryStats.expense), delta: formatDelta(primaryStats.income - primaryStats.expense, previousStats.income - previousStats.expense), icon: CreditCard, trend: primaryStats.income - primaryStats.expense >= previousStats.income - previousStats.expense ? 'up' : 'down' }
   ].map((entry) => ({ ...entry, valueLabel: currencyFormatter.format(entry.value) }));
 
   const monthlyNet = primaryStats.net;
@@ -198,12 +196,6 @@ const OverviewPage = () => {
     } else if (monthlyNet > 0) {
       list.push({ type: 'positive', message: t('alerts.profit', { value: currencyFormatter.format(monthlyNet) }) });
     }
-    budgets
-      .filter((budget) => Number(budget.limit) > 0)
-      .map((budget) => ({ ...budget, usage: Math.round((Number(budget.spent) / Number(budget.limit)) * 100) }))
-      .filter((budget) => budget.usage >= 85)
-      .slice(0, 2)
-      .forEach((budget) => list.push({ type: budget.usage >= 100 ? 'danger' : 'warning', message: t('alerts.nearBudget', { title: budget.title, percent: budget.usage }) }));
     goals
       .filter((goal) => Number(goal.target) > 0)
       .map((goal) => ({ ...goal, progress: Math.round((Number(goal.saved) / Number(goal.target)) * 100) }))
@@ -211,7 +203,7 @@ const OverviewPage = () => {
       .slice(0, 2)
       .forEach((goal) => list.push({ type: 'positive', message: t('alerts.goalAlmost', { title: goal.title, progress: goal.progress }) }));
     return list.slice(0, 4);
-  }, [monthlyNet, primaryStats, budgets, goals, currencyFormatter, t]);
+  }, [monthlyNet, primaryStats, goals, currencyFormatter, t]);
 
   const monthFormatter = useMemo(() => new Intl.DateTimeFormat(i18n.language, { month: 'short' }), [i18n.language]);
 
@@ -304,14 +296,24 @@ const OverviewPage = () => {
 
   const quickNavigateOptions = [
     { title: t('dashboard.addTransaction'), description: t('dashboard.quickAdd'), icon: CreditCard, to: '/transactions' },
-    { title: t('dashboard.setBudget'), description: t('dashboard.quickBudget'), icon: Wallet2, to: '/budgets' },
     { title: t('dashboard.trackGoal'), description: t('dashboard.quickGoal'), icon: PiggyBank, to: '/goals' }
   ];
 
   const comparisonOptions = monthOptions.filter((option) => option.key !== primaryMonth);
 
+  if (dataLoading) {
+    return (
+      <div className="space-y-6">
+        <Card title={t('dashboard.monthlySummary')}>
+          <Skeleton className="h-64 w-full" />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {dataError && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{dataError}</div>}
       <div className="flex flex-wrap items-center gap-4">
         <div>
           <p className="text-xs uppercase text-slate-500">{t('dashboard.monthlySummary')}</p>
@@ -525,17 +527,6 @@ const OverviewPage = () => {
             </div>
           ) : (
             <EmptyState title={t('common.empty')} description={t('goals.empty')} />
-          )}
-        </Card>
-        <Card title={t('budgets.title')} subtitle={t('budgets.monthly')}>
-          {budgets.length ? (
-            <div className="space-y-4">
-              {budgets.map((budget) => (
-                <BudgetCard key={budget.id} {...budget} formatAmount={(value) => currencyFormatter.format(value)} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState title={t('common.empty')} description={t('budgets.empty')} />
           )}
         </Card>
       </div>

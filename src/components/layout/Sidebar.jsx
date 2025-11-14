@@ -1,4 +1,4 @@
-import { LayoutDashboard, Shuffle, FolderKanban, Wallet2, Target, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Shuffle, FolderKanban, Target, BarChart3, ChevronLeft, ChevronRight } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
@@ -7,7 +7,6 @@ const navItems = [
   { id: 'dashboard', icon: LayoutDashboard, to: '/dashboard', labelKey: 'navigation.dashboard' },
   { id: 'transactions', icon: Shuffle, to: '/transactions', labelKey: 'navigation.transactions' },
   { id: 'categories', icon: FolderKanban, to: '/categories', labelKey: 'navigation.categories' },
-  { id: 'budgets', icon: Wallet2, to: '/budgets', labelKey: 'navigation.budgets' },
   { id: 'goals', icon: Target, to: '/goals', labelKey: 'navigation.goals' },
   { id: 'reports', icon: BarChart3, to: '/reports', labelKey: 'navigation.reports' }
 ];
