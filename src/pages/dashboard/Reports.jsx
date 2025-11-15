@@ -76,6 +76,9 @@ const ReportsPage = () => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
   const { transactions, categories, types, loading: dataLoading, error: dataError } = useData();
+  const incomeLabel = t('reports.metrics.income');
+  const expenseLabel = t('reports.metrics.expense');
+  const netLabel = t('reports.metrics.net');
 
   const typeNatureBySlug = useMemo(
     () =>
@@ -311,9 +314,9 @@ const ReportsPage = () => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={timeSeries}>
             {common}
-            <Line dataKey="income" stroke="#10b981" strokeWidth={2} dot={false} />
-            <Line dataKey="expense" stroke="#ef4444" strokeWidth={2} dot={false} />
-            <Line dataKey="net" stroke="#6366f1" strokeWidth={2} dot={false} />
+            <Line dataKey="income" name={incomeLabel} stroke="#10b981" strokeWidth={2} dot={false} />
+            <Line dataKey="expense" name={expenseLabel} stroke="#ef4444" strokeWidth={2} dot={false} />
+            <Line dataKey="net" name={netLabel} stroke="#6366f1" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       );
@@ -323,9 +326,9 @@ const ReportsPage = () => {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={timeSeries}>
             {common}
-            <Bar dataKey="income" stackId="time" fill="#10b981" radius={[8, 8, 0, 0]} />
-            <Bar dataKey="expense" stackId="time" fill="#ef4444" radius={[8, 8, 0, 0]} />
-            <Bar dataKey="net" fill="#6366f1" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="income" name={incomeLabel} stackId="time" fill="#10b981" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="expense" name={expenseLabel} stackId="time" fill="#ef4444" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="net" name={netLabel} fill="#6366f1" radius={[8, 8, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       );
@@ -334,9 +337,9 @@ const ReportsPage = () => {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={timeSeries}>
           {common}
-          <Area dataKey="income" stroke="#10b981" fill="#10b98166" strokeWidth={2} type="monotone" />
-          <Area dataKey="expense" stroke="#ef4444" fill="#ef444466" strokeWidth={2} type="monotone" />
-          <Area dataKey="net" stroke="#6366f1" fill="#6366f166" strokeWidth={2} type="monotone" />
+          <Area dataKey="income" name={incomeLabel} stroke="#10b981" fill="#10b98166" strokeWidth={2} type="monotone" />
+          <Area dataKey="expense" name={expenseLabel} stroke="#ef4444" fill="#ef444466" strokeWidth={2} type="monotone" />
+          <Area dataKey="net" name={netLabel} stroke="#6366f1" fill="#6366f166" strokeWidth={2} type="monotone" />
         </AreaChart>
       </ResponsiveContainer>
     );
