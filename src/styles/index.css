@@ -29,6 +29,13 @@ body {
   .dark textarea {
     @apply bg-slate-900/60 text-slate-100 placeholder:text-slate-400;
   }
+
+  input[type='date'],
+  input[type='datetime-local'],
+  input[type='time'] {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 .dark select option {
