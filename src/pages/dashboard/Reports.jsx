@@ -11,6 +11,7 @@ import {
   LineChart,
   Line,
   XAxis,
+  YAxis,
   Tooltip,
   BarChart,
   Bar,
@@ -18,7 +19,8 @@ import {
   Area,
   CartesianGrid,
   Legend,
-  Cell
+  Cell,
+  ReferenceLine
 } from 'recharts';
 
 const groupingOptions = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
@@ -73,17 +75,31 @@ const buildGroupingKey = (date, grouping, locale, t) => {
 const ReportsPage = () => {
   const { t, i18n } = useTranslation();
   const { settings } = useSettings();
-  const { transactions, categories, loading: dataLoading, error: dataError } = useData();
+  const { transactions, categories, types, loading: dataLoading, error: dataError } = useData();
 
-  const categoryColorMap = useMemo(
+  const typeNatureBySlug = useMemo(
     () =>
-      categories.reduce((acc, category) => {
-        if (category.name) {
-          acc[category.name] = category.color;
+      types.reduce((acc, type) => {
+        if (type.slug) {
+          acc[type.slug] = type.nature || (type.slug.includes('income') ? 'income' : type.slug.includes('expense') ? 'expense' : null);
         }
         return acc;
       }, {}),
-    [categories]
+    [types]
+  );
+
+  const categoryMetaMap = useMemo(
+    () =>
+      categories.reduce((acc, category) => {
+        if (category.name) {
+          acc[category.name] = {
+            color: category.color,
+            type: typeNatureBySlug[category.type] || (category.type === 'income' ? 'income' : category.type === 'expense' ? 'expense' : null)
+          };
+        }
+        return acc;
+      }, {}),
+    [categories, typeNatureBySlug]
   );
 
   const defaultStart = new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
@@ -157,6 +173,12 @@ const ReportsPage = () => {
     );
   }, [filtered]);
 
+  const summaryCards = [
+    { key: 'income', title: t('reports.summary.incomeTotal'), value: totals.income },
+    { key: 'expense', title: t('reports.summary.expenseTotal'), value: -Math.abs(totals.expense) },
+    { key: 'net', title: t('reports.summary.netTotal'), value: totals.net }
+  ];
+
   const categorySeries = useMemo(() => {
     const grouped = filtered.reduce((acc, tx) => {
       const key = tx.category || t('transactions.filters.all');
@@ -166,20 +188,34 @@ const ReportsPage = () => {
       else acc[key].expense += amount;
       return acc;
     }, {});
-    return Object.entries(grouped).map(([name, value]) => ({
-      name,
-      income: value.income,
-      expense: value.expense,
-      net: value.income - value.expense,
-      color: categoryColorMap[name] || DEFAULT_CATEGORY_COLOR,
-      value:
-        filters.metric === 'income'
-          ? value.income
-          : filters.metric === 'expense'
-          ? value.expense
-          : value.income - value.expense
-    }));
-  }, [filtered, filters.metric, t, categoryColorMap]);
+    return Object.entries(grouped).map(([name, value]) => {
+      const meta = categoryMetaMap[name];
+      const type = meta?.type || (value.expense > value.income ? 'expense' : 'income');
+      return {
+        name,
+        income: value.income,
+        expense: value.expense,
+        net: value.income - value.expense,
+        color: meta?.color || DEFAULT_CATEGORY_COLOR,
+        type,
+        chartValue: type === 'income' ? value.income : -Math.abs(value.expense)
+      };
+    });
+  }, [filtered, t, categoryMetaMap]);
+
+  const distributionRows = useMemo(
+    () =>
+      categorySeries.map((entry) => {
+        let metricValue = entry.net;
+        if (filters.metric === 'income') {
+          metricValue = entry.income;
+        } else if (filters.metric === 'expense') {
+          metricValue = -Math.abs(entry.expense);
+        }
+        return { ...entry, value: metricValue };
+      }),
+    [categorySeries, filters.metric]
+  );
 
   const netSeries = useMemo(() => {
     const grouped = filtered.reduce((acc, tx) => {
@@ -188,7 +224,7 @@ const ReportsPage = () => {
       const key = `${date.getFullYear()}-${date.getMonth()}`;
       if (!acc[key]) {
         acc[key] = {
-          label: new Intl.DateTimeFormat(i18n.language, { month: 'short', year: 'numeric' }).format(date),
+          label: `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`,
           net: 0,
           sortIndex: date.getFullYear() * 100 + date.getMonth()
         };
@@ -198,12 +234,12 @@ const ReportsPage = () => {
       return acc;
     }, {});
     return Object.values(grouped).sort((a, b) => a.sortIndex - b.sortIndex);
-  }, [filtered, i18n.language]);
+  }, [filtered]);
 
   const statusSeries = useMemo(() => {
     const grouped = filtered.reduce((acc, tx) => {
       const status = tx.status || 'cleared';
-      if (!acc[status]) acc[status] = { status, label: t(`common.status.${status}`), count: 0, amount: 0 };
+      if (!acc[status]) acc[status] = { status, label: t(`common.status.${status}`, { defaultValue: status }), count: 0, amount: 0 };
       acc[status].count += 1;
       acc[status].amount += Number(tx.amount) || 0;
       return acc;
@@ -262,8 +298,6 @@ const ReportsPage = () => {
       }
     ];
   }, [filtered, categorySeries, currencyFormatter, i18n.language, t]);
-
-  const metricColor = filters.metric === 'expense' ? '#f97316' : filters.metric === 'income' ? '#10b981' : '#14b8a6';
 
   const renderTimeSeriesChart = () => {
     if (!timeSeries.length) {
@@ -327,7 +361,7 @@ const ReportsPage = () => {
     <div className="space-y-6">
       {dataError && <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-600 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{dataError}</div>}
       <Card title={t('reports.filters.title')}>
-        <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           <label className="space-y-1 text-sm">
             <span className="text-slate-500">{t('reports.filters.from')}</span>
             <input type="date" value={filters.startDate} onChange={(event) => changeFilter('startDate', event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700" />
@@ -388,14 +422,9 @@ const ReportsPage = () => {
         </div>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          { title: t('reports.summary.incomeTotal'), value: totals.income },
-          { title: t('reports.summary.expenseTotal'), value: totals.expense },
-          { title: t('reports.summary.netTotal'), value: totals.net },
-          { title: t('reports.summary.avgTransaction'), value: totals.count ? (totals.income + totals.expense) / totals.count : 0 }
-        ].map((card) => (
-          <Card key={card.title} title={card.title}>
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {summaryCards.map((card) => (
+          <Card key={card.key} title={card.title}>
             <p className={`text-3xl font-semibold ${card.value >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {card.value >= 0 ? '+' : '-'}
               {currencyFormatter.format(Math.abs(card.value))}
@@ -416,10 +445,17 @@ const ReportsPage = () => {
                 <BarChart data={categorySeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                  <YAxis axisLine={false} tickLine={false} tickFormatter={(value) => currencyFormatter.format(value)} />
+                  <Tooltip
+                    formatter={(value, _name, props) => [
+                      currencyFormatter.format(Math.abs(value)),
+                      props?.payload?.type === 'income' ? t('dashboard.income') : t('dashboard.expenses')
+                    ]}
+                  />
+                  <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="3 3" />
+                  <Bar dataKey="chartValue" radius={6}>
                     {categorySeries.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color || metricColor} />
+                      <Cell key={entry.name} fill={entry.color || DEFAULT_CATEGORY_COLOR} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -431,33 +467,59 @@ const ReportsPage = () => {
         </Card>
 
         <Card title={t('reports.distribution')} subtitle={t(`reports.metrics.${filters.metric}`)}>
-          {categorySeries.length ? (
-            <div className="max-h-80 overflow-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase text-slate-400">
-                    <th className="px-3 py-2">{t('transactions.category')}</th>
-                    <th className="px-3 py-2 text-right">{t(`reports.metrics.${filters.metric}`)}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categorySeries
-                    .slice()
-                    .sort((a, b) => b.value - a.value)
-                    .map((row) => (
-                      <tr key={row.name} className="border-t border-slate-100 dark:border-slate-800">
-                        <td className="px-3 py-2">
-                          <span className="flex items-center gap-2">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color || DEFAULT_CATEGORY_COLOR }} />
-                            {row.name}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right">{currencyFormatter.format(row.value)}</td>
+          {distributionRows.length ? (
+            <>
+              <div className="space-y-3 md:hidden">
+                {distributionRows
+                  .slice()
+                  .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+                  .map((row) => (
+                    <div key={`mobile-${row.name}`} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="flex items-center gap-2 text-sm font-medium text-slate-800 dark:text-white">
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color || DEFAULT_CATEGORY_COLOR }} />
+                          {row.name}
+                        </span>
+                        <span className={`text-sm font-semibold ${row.value >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {row.value >= 0 ? '+' : '-'}
+                          {currencyFormatter.format(Math.abs(row.value))}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[520px] text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase text-slate-400">
+                        <th className="px-3 py-2">{t('transactions.category')}</th>
+                        <th className="px-3 py-2 text-right">{t(`reports.metrics.${filters.metric}`)}</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {distributionRows
+                        .slice()
+                        .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+                        .map((row) => (
+                          <tr key={row.name} className="border-t border-slate-100 dark:border-slate-800">
+                            <td className="px-3 py-2">
+                              <span className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: row.color || DEFAULT_CATEGORY_COLOR }} />
+                                {row.name}
+                              </span>
+                            </td>
+                            <td className={`px-3 py-2 text-right font-semibold ${row.value >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {row.value >= 0 ? '+' : '-'}
+                              {currencyFormatter.format(Math.abs(row.value))}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           ) : (
             <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
           )}
@@ -499,31 +561,55 @@ const ReportsPage = () => {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card title={t('reports.topTransactions')}>
           {topTransactions.length ? (
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase text-slate-400">
-                    <th className="px-3 py-2">{t('transactions.title')}</th>
-                    <th className="px-3 py-2">{t('transactions.type')}</th>
-                    <th className="px-3 py-2 text-right">{t('transactions.amount')}</th>
-                    <th className="px-3 py-2">{t('transactions.date')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topTransactions.map((tx) => (
-                    <tr key={tx.id} className="border-t border-slate-100 dark:border-slate-800">
-                      <td className="px-3 py-2 font-medium text-slate-800 dark:text-white">{tx.title}</td>
-                      <td className="px-3 py-2 capitalize text-slate-500">{t(`transactions.filters.${tx.type}`)}</td>
-                      <td className={`px-3 py-2 text-right font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+            <>
+              <div className="space-y-3 md:hidden">
+                {topTransactions.map((tx) => (
+                  <div key={`report-mobile-${tx.id}`} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-800">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{tx.title}</p>
+                        <p className="text-xs text-slate-500">{formatDate(tx.date)}</p>
+                      </div>
+                      <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
                         {tx.type === 'income' ? '+' : '-'}
                         {currencyFormatter.format(Number(tx.amount) || 0)}
-                      </td>
-                      <td className="px-3 py-2 text-slate-500">{formatDate(tx.date)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </p>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+                      <span>{t(`transactions.filters.${tx.type}`)}</span>
+                      {tx.category && <span>{tx.category}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden md:block">
+                <div className="overflow-x-auto">
+                  <table className="min-w-[520px] text-sm">
+                    <thead>
+                      <tr className="text-left text-xs uppercase text-slate-400">
+                        <th className="px-3 py-2">{t('transactions.title')}</th>
+                        <th className="px-3 py-2">{t('transactions.type')}</th>
+                        <th className="px-3 py-2 text-right">{t('transactions.amount')}</th>
+                        <th className="px-3 py-2">{t('transactions.date')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {topTransactions.map((tx) => (
+                        <tr key={tx.id} className="border-t border-slate-100 dark:border-slate-800">
+                          <td className="px-3 py-2 font-medium text-slate-800 dark:text-white">{tx.title}</td>
+                          <td className="px-3 py-2 capitalize text-slate-500">{t(`transactions.filters.${tx.type}`)}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {tx.type === 'income' ? '+' : '-'}
+                            {currencyFormatter.format(Number(tx.amount) || 0)}
+                          </td>
+                          <td className="px-3 py-2 text-slate-500">{formatDate(tx.date)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           ) : (
             <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
           )}
@@ -564,4 +650,3 @@ const ReportsPage = () => {
 };
 
 export default ReportsPage;
-

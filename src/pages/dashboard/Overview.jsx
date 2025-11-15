@@ -10,6 +10,7 @@ import QuickActionCard from '../../components/dashboard/QuickActionCard';
 import GoalCard from '../../components/dashboard/GoalCard';
 import EmptyState from '../../components/common/EmptyState';
 import Skeleton from '../../components/common/Skeleton';
+import Modal from '../../components/common/Modal';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { formatDate } from '../../utils/date';
@@ -84,6 +85,7 @@ const OverviewPage = () => {
   const [primaryMonth, setPrimaryMonth] = useState(monthOptions[0]?.key || currentKey);
   const fallbackComparison = monthOptions[1]?.key || primaryMonth;
   const [comparisonMonth, setComparisonMonth] = useState(fallbackComparison);
+  const [transactionsModalOpen, setTransactionsModalOpen] = useState(false);
 
   const { year: primaryYear, month: primaryMonthIndex } = parseMonthKey(primaryMonth);
   const primaryTransactions = useMemo(
@@ -115,6 +117,16 @@ const OverviewPage = () => {
       return !Number.isNaN(date.getTime()) && date.getFullYear() === year && date.getMonth() === month;
     });
   }, [transactions, comparisonMonth]);
+
+  const sortedTransactions = useMemo(() => {
+    const sorter = (value) => {
+      const parsed = new Date(value).getTime();
+      return Number.isNaN(parsed) ? 0 : parsed;
+    };
+    return transactions
+      .slice()
+      .sort((a, b) => sorter(b.date) - sorter(a.date));
+  }, [transactions]);
 
   const extraExpenses = useMemo(() => {
     const goalSavings = goals.reduce((sum, goal) => sum + (Number(goal.saved) || 0), 0);
@@ -163,11 +175,11 @@ const OverviewPage = () => {
     [i18n.language, settings.currency]
   );
 
+  const availableBudget = primaryStats.income - primaryStats.expense;
   const stats = [
     { title: t('dashboard.income'), value: primaryStats.income, delta: formatDelta(primaryStats.income, previousStats.income), icon: ArrowUpRight, trend: primaryStats.income >= previousStats.income ? 'up' : 'down' },
     { title: t('dashboard.expenses'), value: primaryStats.expense, delta: formatDelta(primaryStats.expense, previousStats.expense), icon: ArrowDownRight, trend: primaryStats.expense <= previousStats.expense ? 'up' : 'down' },
-    { title: t('dashboard.savings'), value: Math.max(primaryStats.net, 0), delta: formatDelta(primaryStats.net, previousStats.net), icon: PiggyBank, trend: primaryStats.net >= previousStats.net ? 'up' : 'down' },
-    { title: t('dashboard.availableBudget'), value: Math.max(0, primaryStats.income - primaryStats.expense), delta: formatDelta(primaryStats.income - primaryStats.expense, previousStats.income - previousStats.expense), icon: CreditCard, trend: primaryStats.income - primaryStats.expense >= previousStats.income - previousStats.expense ? 'up' : 'down' }
+    { title: t('dashboard.availableBudget'), value: availableBudget, delta: formatDelta(availableBudget, previousStats.income - previousStats.expense), icon: CreditCard, trend: availableBudget >= previousStats.income - previousStats.expense ? 'up' : 'down' }
   ].map((entry) => ({ ...entry, valueLabel: currencyFormatter.format(entry.value) }));
 
   const monthlyNet = primaryStats.net;
@@ -276,7 +288,29 @@ const OverviewPage = () => {
 
   const hasCategoryData = categorySeries.income.length > 0 || categorySeries.expense.length > 0;
 
-  const recentTransactions = primaryTransactions.slice(0, 4);
+  const recentTransactions = sortedTransactions.slice(0, 5);
+
+  const renderTransactionRow = (tx, variant = 'card') => {
+    const badgeColor = categoryLookup[tx.category]?.color || (tx.type === 'income' ? CATEGORY_FALLBACK.income : CATEGORY_FALLBACK.expense);
+    return (
+      <div key={`${variant}-${tx.id}`} className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 text-sm dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: badgeColor }} />
+          <div>
+            <p className="font-medium text-slate-900 dark:text-white">{tx.title}</p>
+            <p className="text-xs text-slate-500">{formatDate(tx.date)}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {tx.type === 'income' ? '+' : '-'}
+            {currencyFormatter.format(Math.abs(Number(tx.amount) || 0))}
+          </p>
+          <p className="text-xs text-slate-400">{tx.category || t('transactions.filters.all')}</p>
+        </div>
+      </div>
+    );
+  };
 
 
   useEffect(() => {
@@ -328,7 +362,7 @@ const OverviewPage = () => {
         </select>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {stats.map((stat) => (
           <StatCard key={stat.title} title={stat.title} value={stat.valueLabel} delta={stat.delta} trend={stat.trend} icon={stat.icon} />
         ))}
@@ -531,37 +565,42 @@ const OverviewPage = () => {
         </Card>
       </div>
 
-      <Card title={t('transactions.recent')} action={<button className="text-sm font-semibold text-brand-600" onClick={() => navigate('/transactions')}>
-        {t('common.viewAll')}
-      </button>}>
+      <Card
+        title={t('transactions.recent')}
+        action={
+          <button className="text-sm font-semibold text-brand-600" onClick={() => setTransactionsModalOpen(true)}>
+            {t('common.viewAll')}
+          </button>
+        }
+      >
         {recentTransactions.length ? (
           <div className="grid gap-4">
-            {recentTransactions.map((tx) => {
-              const badgeColor = categoryLookup[tx.category]?.color || (tx.type === 'income' ? CATEGORY_FALLBACK.income : CATEGORY_FALLBACK.expense);
-              return (
-                <div key={tx.id} className="flex items-center justify-between rounded-2xl border border-slate-100 p-4 text-sm dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: badgeColor }} />
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{tx.title}</p>
-                      <p className="text-xs text-slate-500">{formatDate(tx.date)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {tx.type === 'income' ? '+' : '-'}
-                      {currencyFormatter.format(Number(tx.amount) || 0)}
-                    </p>
-                    <p className="text-xs text-slate-400">{tx.category || t('transactions.filters.all')}</p>
-                  </div>
-                </div>
-              );
-            })}
+            {recentTransactions.map((tx) => renderTransactionRow(tx, 'card'))}
           </div>
         ) : (
           <EmptyState title={t('transactions.empty')} description={t('transactions.emptyDescription')} />
         )}
       </Card>
+
+      <Modal open={transactionsModalOpen} onClose={() => setTransactionsModalOpen(false)} title={t('dashboard.allTransactions')} size="lg">
+        {sortedTransactions.length ? (
+          <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-2">
+            {sortedTransactions.map((tx) => renderTransactionRow(tx, 'modal'))}
+          </div>
+        ) : (
+          <EmptyState title={t('transactions.empty')} description={t('transactions.emptyDescription')} />
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setTransactionsModalOpen(false);
+            navigate('/transactions');
+          }}
+          className="mt-6 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300"
+        >
+          {t('transactions.title')}
+        </button>
+      </Modal>
     </div>
   );
 };

@@ -71,7 +71,8 @@
     "yearlyNet": "İllik nəticə",
     "profit": "Mənfəət",
     "loss": "Zərər",
-    "topSpending": "Bu ay ən çox xərc"
+    "topSpending": "Bu ay ən çox xərc",
+    "allTransactions": "Bütün əməliyyatlar"
   },
   "transactions": {
     "title": "Əməliyyatlar",
@@ -98,7 +99,12 @@
       "all": "Hamısı",
       "income": "Gəlir",
       "expense": "Xərc"
-    }
+    },
+    "fullHistory": "Bütün əməliyyatlar",
+    "newCategory": "Yeni kateqoriya",
+    "categoryCreate": "Kateqoriya yarat",
+    "categoryCreateHint": "Bu tip üçün kateqoriya yoxdur. Burada dərhal əlavə edin.",
+    "categoryNamePlaceholder": "Məsələn, Abunəliklər"
   },
   "categories": {
     "title": "Kateqoriyalar",
@@ -109,7 +115,8 @@
     "emptyDescription": "Əməliyyatları qruplaşdırmaq üçün kateqoriya yaradın.",
     "deleteConfirm": "Bu kateqoriyanı silmək istədiyinizə əminsiniz?",
     "inUse": "Əməliyyatlarda aktivdir",
-    "deleteBlocked": "Bu kateqoriyanın əməliyyatları olduğu üçün silinməsi bağlıdır"
+    "deleteBlocked": "Bu kateqoriyanın əməliyyatları olduğu üçün silinməsi bağlıdır",
+    "createError": "Kateqoriya yaradıla bilmədi"
   },
   "budgets": {
     "title": "Büdcələr",
@@ -205,7 +212,9 @@
     "status": {
       "pending": "Gözləyir",
       "completed": "Tamamlanıb",
-      "cancelled": "Ləğv edilib"
+      "cancelled": "Ləğv edilib",
+      "approved": "Təsdiqlənib",
+      "təsdiqlənib": "Təsdiqlənib"
     }
   }
 }

@@ -10,11 +10,30 @@
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-300 ease-spring dark:bg-slate-950 dark:text-slate-100;
+  @apply bg-slate-50 text-slate-900 antialiased transition-colors duration-300 ease-spring dark:bg-slate-950 dark:text-slate-100 ;
 }
 
 #root {
   @apply min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900;
+}
+
+@layer base {
+  input:not([type='color']),
+  select,
+  textarea {
+    @apply bg-white text-slate-900 transition-colors duration-200;
+  }
+
+  .dark input:not([type='color']),
+  .dark select,
+  .dark textarea {
+    @apply bg-slate-900/60 text-slate-100 placeholder:text-slate-400;
+  }
+}
+
+.dark select option {
+  background-color: #0f172a;
+  color: #e2e8f0;
 }
 
 ::-webkit-scrollbar {

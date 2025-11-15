@@ -9,6 +9,8 @@ import EmptyState from '../../components/common/EmptyState';
 import Skeleton from '../../components/common/Skeleton';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { resolveTypeLabel } from '../../utils/types';
+import { formatDate } from '../../utils/date';
 
 const pageSize = 10;
 
@@ -48,10 +50,10 @@ const TransactionsPage = () => {
   const typeLookup = useMemo(
     () =>
       types.reduce((acc, type) => {
-        acc[type.slug] = type.name;
+        acc[type.slug] = resolveTypeLabel(type, t) || type.name;
         return acc;
       }, {}),
-    [types]
+    [types, t]
   );
 
   const categoryColors = useMemo(
@@ -185,6 +187,39 @@ const TransactionsPage = () => {
   const showingFrom = sortedTransactions.length ? (page - 1) * pageSize + 1 : 0;
   const showingTo = Math.min(sortedTransactions.length, page * pageSize);
 
+  const renderMobileTransaction = (item) => (
+    <div key={item.id} className="rounded-3xl border border-slate-200 bg-white/80 p-4 text-sm dark:border-slate-800 dark:bg-slate-900/60">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-base font-semibold text-slate-900 dark:text-white">{item.title}</p>
+          <p className="text-xs text-slate-500">{formatDate(item.date)}</p>
+        </div>
+        <div className="text-right">
+          <p className={`text-base font-semibold ${item.type === 'income' ? 'text-emerald-500' : 'text-rose-500'}`}>
+            {item.type === 'income' ? '+' : '-'}
+            {currencyFormatter.format(Number(item.amount) || 0)}
+          </p>
+          <p className="text-xs text-slate-400">{typeLookup[item.typeKey] || t(`transactions.filters.${item.type}`, { defaultValue: item.type })}</p>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
+        <span className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: categoryColors[item.category] || '#94a3b8' }} />
+          {item.category || t('transactions.filters.all')}
+        </span>
+        {item.status && <span>{t(`common.status.${item.status}`, { defaultValue: item.status })}</span>}
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button onClick={() => { setSelected(item); setModalOpen(true); }} className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-200">
+          {t('actions.edit')}
+        </button>
+        <button onClick={() => handleDelete(item.id)} className="flex-1 rounded-2xl border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-600 dark:border-rose-500/40 dark:text-rose-300">
+          {t('actions.delete')}
+        </button>
+      </div>
+    </div>
+  );
+
   if (dataLoading) {
     return (
       <div className="space-y-6">
@@ -201,7 +236,7 @@ const TransactionsPage = () => {
       <Card
         title={t('transactions.title')}
         action={
-          <button onClick={() => setModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800">
+          <button onClick={() => setModalOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 sm:w-auto">
             <Plus size={16} />
             {t('transactions.add')}
           </button>
@@ -211,20 +246,25 @@ const TransactionsPage = () => {
         <div className="mt-6 space-y-4">
           {sortedTransactions.length ? (
             <>
-              <TransactionsTable
-                data={paginated}
-                onEdit={(item) => {
-                  setSelected(item);
-                  setModalOpen(true);
-                }}
-                onDelete={handleDelete}
-                formatCurrency={(value) => currencyFormatter.format(value)}
-                sortConfig={sortConfig}
-                onSort={requestSort}
-                categoryColors={categoryColors}
-                typeLookup={typeLookup}
-              />
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
+              <div className="space-y-3 md:hidden">
+                {paginated.map((item) => renderMobileTransaction(item))}
+              </div>
+              <div className="hidden md:block">
+                <TransactionsTable
+                  data={paginated}
+                  onEdit={(item) => {
+                    setSelected(item);
+                    setModalOpen(true);
+                  }}
+                  onDelete={handleDelete}
+                  formatCurrency={(value) => currencyFormatter.format(value)}
+                  sortConfig={sortConfig}
+                  onSort={requestSort}
+                  categoryColors={categoryColors}
+                  typeLookup={typeLookup}
+                />
+              </div>
+              <div className="flex flex-col gap-3 text-sm text-slate-500 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <p>
                   {t('transactions.showing', {
                     from: showingFrom,
@@ -232,14 +272,14 @@ const TransactionsPage = () => {
                     total: sortedTransactions.length
                   })}
                 </p>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1} className="rounded-2xl border border-slate-200 px-3 py-1 text-sm font-medium disabled:opacity-50 dark:border-slate-700">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1} className="flex-1 rounded-2xl border border-slate-200 px-3 py-1 text-center text-sm font-medium disabled:opacity-50 dark:border-slate-700 sm:flex-initial">
                     {t('common.prev')}
                   </button>
-                  <span>
+                  <span className="text-center sm:inline">
                     {page}/{totalPages}
                   </span>
-                  <button onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={page === totalPages} className="rounded-2xl border border-slate-200 px-3 py-1 text-sm font-medium disabled:opacity-50 dark:border-slate-700">
+                  <button onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))} disabled={page === totalPages} className="flex-1 rounded-2xl border border-slate-200 px-3 py-1 text-center text-sm font-medium disabled:opacity-50 dark:border-slate-700 sm:flex-initial">
                     {t('common.next')}
                   </button>
                 </div>

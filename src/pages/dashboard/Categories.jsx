@@ -6,6 +6,7 @@ import EmptyState from '../../components/common/EmptyState';
 import Skeleton from '../../components/common/Skeleton';
 import { useData } from '../../contexts/DataContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { resolveTypeLabel } from '../../utils/types';
 
 const defaultForm = { id: null, name: '', type: '', color: '#5c7cfa' };
 
@@ -166,11 +167,14 @@ const CategoriesPage = () => {
             <span className="text-slate-500">{t('transactions.type')}</span>
             {types.length ? (
               <select value={form.type} onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value }))} className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm dark:border-slate-700">
-                {types.map((type) => (
-                  <option key={type.id} value={type.slug}>
-                    {type.name}
-                  </option>
-                ))}
+                {types.map((type) => {
+                  const label = resolveTypeLabel(type, t) || type.name;
+                  return (
+                    <option key={type.id} value={type.slug}>
+                      {label}
+                    </option>
+                  );
+                })}
               </select>
             ) : (
               <div className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">{t('categories.emptyDescription')}</div>
@@ -195,11 +199,14 @@ const CategoriesPage = () => {
       </Card>
 
       {types.length ? (
-        types.map((type) => (
-          <Card key={type.id} title={type.name}>
-            <CategoryGrid items={grouped[type.slug] || []} label={type.name} />
-          </Card>
-        ))
+        types.map((type) => {
+          const label = resolveTypeLabel(type, t) || type.name;
+          return (
+            <Card key={type.id} title={label}>
+              <CategoryGrid items={grouped[type.slug] || []} label={label} />
+            </Card>
+          );
+        })
       ) : (
         <Card>
           <EmptyState title={t('common.empty')} description={t('categories.emptyDescription')} />

@@ -11,12 +11,12 @@ const navItems = [
   { id: 'reports', icon: BarChart3, to: '/reports', labelKey: 'navigation.reports' }
 ];
 
-const Sidebar = ({ collapsed, onToggle }) => {
+const Sidebar = ({ collapsed, onToggle, onNavigate, hideToggle = false }) => {
   const { t } = useTranslation();
   return (
     <aside
       className={clsx(
-        'glass-panel sticky top-6 flex h-[calc(100vh-3rem)] flex-col border border-white/40 transition-[width] duration-300 dark:border-slate-800/80',
+        'glass-panel sticky top-4 flex h-[calc(100vh-2rem)] shrink-0 flex-col border border-white/40 transition-[width] duration-300 dark:border-slate-800/80',
         collapsed ? 'w-24 px-4' : 'w-72 px-6'
       )}
     >
@@ -30,9 +30,11 @@ const Sidebar = ({ collapsed, onToggle }) => {
             </div>
           )}
         </div>
-        <button onClick={onToggle} className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow dark:border-slate-800 dark:bg-slate-900" aria-label="Toggle sidebar">
-          {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-        </button>
+        {!hideToggle && (
+          <button onClick={onToggle} className="rounded-full border border-slate-200 bg-white p-2 text-slate-500 shadow dark:border-slate-800 dark:bg-slate-900" aria-label="Toggle sidebar">
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        )}
       </div>
 
       <nav className="mt-2 flex-1 space-y-2 overflow-y-auto pb-6">
@@ -40,6 +42,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
           <NavLink
             key={id}
             to={to}
+            onClick={() => onNavigate?.()}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition hover:bg-white dark:hover:bg-slate-800/60',

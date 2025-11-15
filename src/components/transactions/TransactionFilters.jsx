@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { resolveTypeLabel } from '../../utils/types';
 
 const TransactionFilters = ({ filters, onChange, types = [] }) => {
   const { t } = useTranslation();
@@ -19,7 +20,7 @@ const TransactionFilters = ({ filters, onChange, types = [] }) => {
         <option value="all">{t('transactions.filters.all')}</option>
         {types.map((type) => (
           <option key={type.id} value={type.slug}>
-            {type.name}
+            {resolveTypeLabel(type, t) || type.name}
           </option>
         ))}
       </select>

@@ -26,8 +26,8 @@ const TransactionsTable = ({ data, onEdit, onDelete, formatCurrency, sortConfig,
   };
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/60">
-      <table className="w-full text-left">
+    <div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-900/60">
+      <table className="min-w-[640px] text-left">
         <thead>
           <tr className="text-xs uppercase tracking-wide text-slate-500">
             {headers.map((header) => (
