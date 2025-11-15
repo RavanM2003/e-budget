@@ -300,7 +300,7 @@ const TransactionsPage = () => {
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title={t('categories.title')} subtitle={t('transactions.filters.category')}>
+        <Card title={t('categories.title')} subtitle={t('transactions.category')}>
           <form className="grid gap-3 md:grid-cols-4" onSubmit={(event) => event.preventDefault()}>
             <label className="space-y-1 text-xs uppercase text-slate-400">
               {t('transactions.category')}
@@ -321,19 +321,19 @@ const TransactionsPage = () => {
             </label>
           </form>
           {categoryInsight.category !== 'all' && categoryInsightResult ? (
-            <div className="mt-4 rounded-2xl border border-slate-100 bg-white/70 p-4 text-sm dark:border-slate-800 dark:bg-slate-900/50">
-              <div className="flex items-center justify-between">
-                <span>{t('dashboard.income')}</span>
-                <strong>{currencyFormatter.format(categoryInsightResult.income)}</strong>
+              <div className="mt-4 rounded-2xl border border-slate-100 bg-white/70 p-4 text-sm dark:border-slate-800 dark:bg-slate-900/50">
+                <div className="flex items-center justify-between">
+                  <span>{t('dashboard.income')}</span>
+                  <strong>{currencyFormatter.format(categoryInsightResult.income)}</strong>
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span>{t('dashboard.expenses')}</span>
+                  <strong>{currencyFormatter.format(categoryInsightResult.expense)}</strong>
+                </div>
+                <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/60">
+                {t('transactions.category')}: <strong>{categoryInsight.category}</strong>
+                </div>
               </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span>{t('dashboard.expenses')}</span>
-                <strong>{currencyFormatter.format(categoryInsightResult.expense)}</strong>
-              </div>
-              <div className="mt-4 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/60">
-                {t('transactions.filters.category')}: <strong>{categoryInsight.category}</strong>
-              </div>
-            </div>
           ) : (
             <p className="mt-4 text-sm text-slate-500">{t('categories.emptyDescription')}</p>
           )}

@@ -498,7 +498,7 @@ const OverviewPage = () => {
             <EmptyState title={t('common.empty')} description={t('dashboard.noDataMessage')} />
           )}
         </ChartCard>
-        <ChartCard title={t('dashboard.allocation')} subtitle={t('dashboard.byCategory')}>
+        <ChartCard title={t('dashboard.allocation')} subtitle={t('dashboard.byCategory')} autoHeight>
           {hasCategoryData ? (
             <div className="grid gap-6 md:grid-cols-2">
               {['income', 'expense'].map((type) => (

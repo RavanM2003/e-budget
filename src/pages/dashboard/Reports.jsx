@@ -205,16 +205,11 @@ const ReportsPage = () => {
 
   const distributionRows = useMemo(
     () =>
-      categorySeries.map((entry) => {
-        let metricValue = entry.net;
-        if (filters.metric === 'income') {
-          metricValue = entry.income;
-        } else if (filters.metric === 'expense') {
-          metricValue = -Math.abs(entry.expense);
-        }
-        return { ...entry, value: metricValue };
-      }),
-    [categorySeries, filters.metric]
+      categorySeries.map((entry) => ({
+        ...entry,
+        value: entry.net
+      })),
+    [categorySeries]
   );
 
   const netSeries = useMemo(() => {
@@ -466,7 +461,7 @@ const ReportsPage = () => {
           )}
         </Card>
 
-        <Card title={t('reports.distribution')} subtitle={t(`reports.metrics.${filters.metric}`)}>
+        <Card title={t('reports.distribution')} subtitle={t('reports.metrics.net')}>
           {distributionRows.length ? (
             <>
               <div className="space-y-3 md:hidden">
@@ -494,7 +489,7 @@ const ReportsPage = () => {
                     <thead>
                       <tr className="text-left text-xs uppercase text-slate-400">
                         <th className="px-3 py-2">{t('transactions.category')}</th>
-                        <th className="px-3 py-2 text-right">{t(`reports.metrics.${filters.metric}`)}</th>
+                        <th className="px-3 py-2 text-right">{t('reports.metrics.net')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -636,8 +631,8 @@ const ReportsPage = () => {
                 <XAxis dataKey="year" axisLine={false} tickLine={false} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="income" fill="#22d3ee" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="expense" fill="#fb7185" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="income" name={t('reports.metrics.income')} fill="#22d3ee" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="expense" name={t('reports.metrics.expense')} fill="#fb7185" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

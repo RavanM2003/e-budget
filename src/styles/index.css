@@ -36,6 +36,15 @@ body {
   color: #e2e8f0;
 }
 
+@media (max-width: 768px) {
+  input:not([type='color']),
+  select,
+  textarea {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
