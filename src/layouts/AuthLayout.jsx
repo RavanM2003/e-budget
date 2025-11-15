@@ -1,5 +1,5 @@
 import { Outlet } from 'react-router-dom';
-import logo from '../assets/logo.svg';
+import logo from '../assets/logo.png';
 import { useTranslation } from 'react-i18next';
 
 const AuthLayout = () => {
@@ -22,7 +22,7 @@ const AuthLayout = () => {
             ))}
           </div>
         </div>
-        <p className="text-xs text-slate-500">© {new Date().getFullYear()} eBudget</p>
+        <p className="text-xs text-slate-500">ï¿½ {new Date().getFullYear()} eBudget</p>
       </div>
       <div className="flex flex-1 items-center justify-center bg-white px-6 py-12 text-slate-900 dark:text-slate-900">
         <div className="w-full max-w-md">
