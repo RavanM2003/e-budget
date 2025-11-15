@@ -1,6 +1,6 @@
-﻿# e-budget
+﻿# Online-budget
 
-e-budget şəxsi maliyyə davranışını izləmək, büdcələri idarə etmək və qənaət hədəflərini rəqəmsal mühitdə görselleşdirmək üçün hazırlanmış müasir React tətbiqidir. Layihə Vite ilə qurulub, Tailwind CSS ilə stilizə olunub və bütün funksionallıq tam lokal (localStorage) üzərində işlədiyi üçün server tələb etmir.
+Online-budget şəxsi maliyyə davranışını izləmək, büdcələri idarə etmək və qənaət hədəflərini rəqəmsal mühitdə görselleşdirmək üçün hazırlanmış müasir React tətbiqidir. Layihə Vite ilə qurulub, Tailwind CSS ilə stilizə olunub və bütün funksionallıq tam lokal (localStorage) üzərində işlədiyi üçün server tələb etmir.
 
 ## Mündəricat
 
@@ -75,11 +75,11 @@ Tətbiq iki əsas hissədən ibarətdir: autentifikasiya (giriş/qeydiyyat/şifr
 
 1. Reponu klonlayın:
    ```bash
-   git clone https://github.com/RavanM2003/e-budget.git
+   git clone https://github.com/RavanM2003/Online-budget.git
    ```
 2. Layihə qovluğuna keçin:
    ```bash
-   cd e-budget
+   cd Online-budget
    ```
 3. Asılılıqları quraşdırın:
    ```bash
